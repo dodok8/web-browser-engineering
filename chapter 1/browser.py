@@ -4,7 +4,17 @@ import ssl
 
 class URL:
     def __init__(self, url):
-        try:
+        self.view_source = False
+
+        if url.startswith("data:"):
+            self.scheme, url = url.split(":", 1)
+            self.mediatype, url = url.split(",", 1)
+            self.mediatype = self.mediatype.split(";")
+            self.data = url
+        else:
+            if url.startswith("view-source:"):
+                self.view_source = True
+                _, url = url.split("view-source:", 1)
             self.scheme, url = url.split("://", 1)
             assert self.scheme in ["http", "https", "file"]
 
@@ -26,11 +36,6 @@ class URL:
                 if ":" in self.host:
                     self.host, port = self.host.split(":", 1)
                     self.port = int(port)
-        except ValueError:
-            self.scheme, url = url.split(":", 1)
-            self.mediatype, url = url.split(",", 1)
-            self.mediatype = self.mediatype.split(";")
-            self.data = url
 
     def request(self, headers=dict()):
         if self.scheme == "data":
@@ -97,7 +102,10 @@ def show(body):
 
 def load(url):
     body = url.request({"User-Agent": "My-browser"})
-    show(body)
+    if url.view_source:
+        print(body, end="")
+    else:
+        show(body)
 
 
 if __name__ == "__main__":

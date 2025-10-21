@@ -7,6 +7,7 @@ class URL:
 
     def __init__(self, url):
         self.view_source = False
+        self.MAX_REDIRECT = 30
 
         if url.startswith("data:"):
             self.scheme, url = url.split(":", 1)
@@ -39,10 +40,16 @@ class URL:
                     self.host, port = self.host.split(":", 1)
                     self.port = int(port)
 
-    def request(self, headers=dict()):
+    def request(self, headers=dict(), redirect_count=0):
         if self.scheme == "data":
             return self.data
         elif self.scheme in ["https", "http"]:
+            # Check redirect limit
+            if redirect_count >= self.MAX_REDIRECT:
+                raise Exception(
+                    "Too many redirects (limit: {})".format(self.MAX_REDIRECT)
+                )
+
             cache_key = (self.scheme, self.host, self.port)
 
             if cache_key in URL.sockets:
@@ -80,27 +87,47 @@ class URL:
                     break
                 header, value = line.split(":", 1)
                 response_headers[header.casefold()] = value.strip()
-                # 본문 길이가 주어져서 내려오므로, Transfer-Encoding은 필요 없다.
-                # 단 view-source의 경우, chunked 로 내려오므로 이에 대한 처리가 필요하다.
 
-            if (
-                "transfer-encoding" in response_headers
-                and response_headers["transfer-encoding"] == "chunked"
-            ):
-                # chunked 파싱
-                body = ""
-                while True:
-                    chunk_size_line = response.readline()
-                    chunk_size_line = chunk_size_line.decode("utf-8").strip()
-                    chunk_size = int(chunk_size_line, 16)  # hex to int
-                    if chunk_size == 0:
-                        break
-                    chunk_data = response.read(chunk_size).decode("utf-8")
-                    response.readline()  # \r\n 제거
-                    body += chunk_data
+            # Handle redirects (300-399 status codes)
+            if 300 <= int(status) < 400:
+                assert "location" in response_headers
+
+                location = response_headers["location"]
+
+                # Handle relative URLs (starting with /)
+                if location.startswith("/"):
+                    # Same scheme and host, new path
+                    redirect_url = "{}://{}{}".format(self.scheme, self.host, location)
+                    if self.port != (80 if self.scheme == "http" else 443):
+                        redirect_url = "{}://{}:{}{}".format(
+                            self.scheme, self.host, self.port, location
+                        )
+                else:
+                    # Full URL
+                    redirect_url = location
+
+                # Follow the redirect
+                new_url = URL(redirect_url)
+                return new_url.request(headers, redirect_count + 1)
             else:
-                content_length = int(response_headers["content-length"])
-                body = response.read(content_length).decode("utf-8")
+                if (
+                    "transfer-encoding" in response_headers
+                    and response_headers["transfer-encoding"] == "chunked"
+                ):
+                    # chunked 파싱
+                    body = ""
+                    while True:
+                        chunk_size_line = response.readline()
+                        chunk_size_line = chunk_size_line.decode("utf-8").strip()
+                        chunk_size = int(chunk_size_line, 16)  # hex to int
+                        if chunk_size == 0:
+                            break
+                        chunk_data = response.read(chunk_size).decode("utf-8")
+                        response.readline()  # \r\n 제거
+                        body += chunk_data
+                else:
+                    content_length = int(response_headers["content-length"])
+                    body = response.read(content_length).decode("utf-8")
         else:
             with open(self.path, "r") as file:
                 body = file.read()

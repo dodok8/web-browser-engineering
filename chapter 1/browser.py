@@ -1,9 +1,15 @@
+import os
+import pickle
 import socket
 import ssl
+import time
+import hashlib
 
 
 class URL:
     sockets = {}
+    cache = {}
+    CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache")
 
     def __init__(self, url):
         self.view_source = False
@@ -40,6 +46,39 @@ class URL:
                     self.host, port = self.host.split(":", 1)
                     self.port = int(port)
 
+    def __is_cached(self, cache_key):
+        if cache_key in URL.cache:
+            return True
+        else:
+            self.__load_cache_from_memory(cache_key)
+            return cache_key in URL.cache
+
+    def __load_cache_from_memory(self, cache_key):
+        filename = self.__get_cache_filename(cache_key)
+        if not os.path.exists(filename):
+            pass
+        try:
+            with open(filename, "rb") as f:
+                data = pickle.load(f)
+                cache_entry = data["entry"]
+
+                body, response_headers, status_code, cached_time, max_age = cache_entry
+                if max_age is not None and (time.time() - cached_time) >= max_age:
+                    os.remove(filename)  # cache 시간 확인후 필요없으면 삭제
+                else:
+                    URL.cache[cache_key] = cache_entry
+        except FileNotFoundError:
+            pass
+
+    def __get_cache_filename(self, cache_key):
+        hash = hashlib.sha256(str(cache_key).encode("utf-8")).hexdigest()
+        return os.path.join(URL.CACHE_DIR, f"{hash}.cache")
+
+    def __save_cache_to_disk(self, cache_key, cache_entry):
+        filename = self.__get_cache_filename(cache_key)
+        with open(filename, "wb") as f:
+            pickle.dump({"entry": cache_entry}, f)
+
     def request(self, headers=dict(), redirect_count=0):
         if self.scheme == "data":
             return self.data
@@ -50,7 +89,7 @@ class URL:
                     "Too many redirects (limit: {})".format(self.MAX_REDIRECT)
                 )
 
-            cache_key = (self.scheme, self.host, self.port)
+            cache_key = (self.scheme, self.host, self.path, self.port)
 
             if cache_key in URL.sockets:
                 s = URL.sockets[cache_key]
@@ -88,8 +127,14 @@ class URL:
                 header, value = line.split(":", 1)
                 response_headers[header.casefold()] = value.strip()
 
+            # Handle cache
+            if int(status) in [200] and self.__is_cached(cache_key):
+                body, response_headers, status_code, cached_time, max_age = URL.cache[
+                    cache_key
+                ]
+                return body
             # Handle redirects (300-399 status codes)
-            if 300 <= int(status) < 400:
+            elif 300 <= int(status) < 400:
                 assert "location" in response_headers
 
                 location = response_headers["location"]
@@ -103,12 +148,11 @@ class URL:
                             self.scheme, self.host, self.port, location
                         )
                 else:
-                    # Full URL
                     redirect_url = location
 
                 # Follow the redirect
                 new_url = URL(redirect_url)
-                return new_url.request(headers, redirect_count + 1)
+                body = new_url.request(headers, redirect_count + 1)
             else:
                 if (
                     "transfer-encoding" in response_headers
@@ -131,6 +175,30 @@ class URL:
         else:
             with open(self.path, "r") as file:
                 body = file.read()
+
+        should_cache = False
+        max_age = None
+        if int(status) in [404, 200]:
+            if "cache-control" in response_headers:
+                cache_control = response_headers["cache-control"]
+
+                if "no-store" in cache_control:
+                    pass
+                elif "max-age=" in cache_control:
+                    for directive in cache_control.split(","):
+                        directive = directive.strip()
+                        if directive.startswith("max-age="):
+                            try:
+                                max_age = int(directive.split("=")[1])
+                                should_cache = True
+                            except ValueError:
+                                should_cache = False
+                            break
+        if should_cache:
+            print(max_age)
+            cache_entry = (body, response_headers, int(status), time.time(), max_age)
+            URL.cache[cache_key] = cache_entry
+            self.__save_cache_to_disk(cache_key, cache_entry)
 
         return body
 

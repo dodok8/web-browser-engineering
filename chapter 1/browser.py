@@ -4,6 +4,7 @@ import socket
 import ssl
 import time
 import hashlib
+import gzip
 
 
 class URL:
@@ -109,6 +110,7 @@ class URL:
             request = "GET {} HTTP/1.1\r\n".format(self.path)
             request += "Host: {}\r\n".format(self.host)
             request += "Connection: keep-alive\r\n"
+            request += "Accept-Encoding: gzip"
             for key in headers:
                 request += "{}: {}\r\n".format(key, headers[key])
             request += "\r\n"
@@ -116,8 +118,8 @@ class URL:
 
             response = s.makefile("rb", newline=b"\r\n")
 
-            statusline = response.readline().decode("utf8")
-            version, status, explanation = statusline.split(" ", 2)
+            status_line = response.readline().decode("utf8")
+            version, status, explanation = status_line.split(" ", 2)
 
             response_headers = {}
             while True:
@@ -172,6 +174,12 @@ class URL:
                 else:
                     content_length = int(response_headers["content-length"])
                     body = response.read(content_length).decode("utf-8")
+
+                if (
+                    "content-encoding" in response_headers
+                    and response_headers["content-encoding"] == "gzip"
+                ):
+                    body = gzip.decompress(body)
         else:
             with open(self.path, "r") as file:
                 body = file.read()
@@ -195,7 +203,6 @@ class URL:
                                 should_cache = False
                             break
         if should_cache:
-            print(max_age)
             cache_entry = (body, response_headers, int(status), time.time(), max_age)
             URL.cache[cache_key] = cache_entry
             self.__save_cache_to_disk(cache_key, cache_entry)

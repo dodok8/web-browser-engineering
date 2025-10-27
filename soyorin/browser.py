@@ -29,7 +29,7 @@ class Browser:
         body = connection.request(url=url)
         text = self.lexer.lex(body, view_source=url.view_source)
         print(text)
-        HSTEP, VSTEP = 100, 18
+        HSTEP, VSTEP = 13, 18
         cursor_x, cursor_y = HSTEP, VSTEP
 
         self.canvas.create_text(20, 20, text="Hi")

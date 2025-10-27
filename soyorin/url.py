@@ -38,7 +38,7 @@ class URL:
 
     def __init__(self, url: str):
         self.view_source = False
-        if url.startswith("view_source"):
+        if url.startswith("view-source:"):
             self.view_source = True
             url = url[12:]
 

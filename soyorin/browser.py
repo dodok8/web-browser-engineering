@@ -28,7 +28,7 @@ class Browser:
         connection = Connection(http_options={"http_version": "1.1"}, cache=cache)
         body = connection.request(url=url)
         text = self.lexer.lex(body, view_source=url.view_source)
-        print(text)
+
         HSTEP, VSTEP = 13, 18
         cursor_x, cursor_y = HSTEP, VSTEP
 

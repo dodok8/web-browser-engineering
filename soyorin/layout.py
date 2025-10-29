@@ -14,6 +14,10 @@ class Layout:
         self.display_list = []
         cursor_x, cursor_y = self.hstep, self.vstep
         for c in text:
+            # 연습문제 2-1 줄바꿈
+            if c == "\n":
+                cursor_y += self.vstep
+                cursor_x = self.hstep
             self.display_list.append((cursor_x, cursor_y, c))
 
             cursor_x += self.hstep

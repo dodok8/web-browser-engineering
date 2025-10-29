@@ -18,8 +18,10 @@ class Browser:
             self.window, width=Browser.WIDTH, height=Browser.HEIGHT
         )
         self.lexer = Lexer()
-        self.canvas.pack()
+        self.canvas.pack(fill=tkinter.BOTH, expand=True)
         self.layout = Layout(Browser.WIDTH, Browser.HEIGHT, hstep=13, vstep=18)
+
+        self.text = ""
 
         self.scroll = 0.0
         self.window.bind("<Down>", self.__scroll_down)
@@ -27,6 +29,14 @@ class Browser:
         self.window.bind("<MouseWheel>", self.__scroll_wheel)
         self.window.bind("<Button-4>", self.__scroll_wheel)
         self.window.bind("<Button-5>", self.__scroll_wheel)
+
+        self.window.bind("<Configure>", self.__resize)
+
+    def __resize(self, e: tkinter.Event):
+        self.layout.height = e.height
+        self.layout.width = e.width
+        self.layout.update_layout(self.text)
+        self.draw()
 
     def __scroll_wheel(self, e: tkinter.Event):
         if platform.system() == "Windows":
@@ -57,7 +67,7 @@ class Browser:
     def draw(self):
         self.canvas.delete("all")
         for x, y, c in self.layout.display_list:
-            if y > self.scroll + Browser.HEIGHT:
+            if y > self.scroll + self.layout.height:
                 continue
             if y + self.layout.vstep < self.scroll:
                 continue
@@ -71,6 +81,6 @@ class Browser:
 
         connection = Connection(http_options={"http_version": "1.1"}, cache=cache)
         body = connection.request(url=url)
-        text = self.lexer.lex(body, view_source=url.view_source)
-        self.layout.update_layout(text)
+        self.text = self.lexer.lex(body, view_source=url.view_source)
+        self.layout.update_layout(self.text)
         self.draw()

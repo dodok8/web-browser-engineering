@@ -1,0 +1,22 @@
+from typing import Tuple
+
+
+class Layout:
+
+    def __init__(self, width: int, height: int, hstep: int, vstep: int):
+        self.width = width
+        self.height = height
+        self.hstep = hstep
+        self.vstep = vstep
+        self.display_list: list[Tuple[int, int, str]] = []
+
+    def update_layout(self, text):
+        self.display_list = []
+        cursor_x, cursor_y = self.hstep, self.vstep
+        for c in text:
+            self.display_list.append((cursor_x, cursor_y, c))
+
+            cursor_x += self.hstep
+            if cursor_x >= self.width - self.hstep:
+                cursor_y += self.hstep
+                cursor_x = self.hstep

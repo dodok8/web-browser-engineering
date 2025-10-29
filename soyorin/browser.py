@@ -1,6 +1,4 @@
-from tkinter.constants import SCROLL
 from soyorin.layout import Layout
-from typing import Tuple
 from soyorin.connection import Connection
 from soyorin.cache import FileCache, InMemoryCache
 from soyorin.url import URL

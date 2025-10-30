@@ -59,7 +59,7 @@ class Connection:
         # We need to remove the leading slash before the drive letter
         if len(path) > 2 and path[0] == "/" and path[2] == ":":
             path = path[1:]
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             return f.read()
 
     def __request_http(

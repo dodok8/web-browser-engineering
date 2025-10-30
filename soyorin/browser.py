@@ -1,3 +1,5 @@
+from pathlib import Path
+import os
 from soyorin.layout import Layout
 from soyorin.connection import Connection
 from soyorin.cache import FileCache, InMemoryCache
@@ -34,6 +36,14 @@ class Browser:
         self.window.bind("<Button-5>", self.__scroll_wheel)
 
         self.window.bind("<Configure>", self.__resize)
+
+        self.emoji_cache = {}
+        emoji_path = Path(__file__).parent.parent / "emoji"
+        for emoji_file_name in os.listdir(emoji_path):
+            emoji_code = emoji_file_name.strip(".png")
+            self.emoji_cache[emoji_code] = tkinter.PhotoImage(
+                file=f"emoji/{emoji_file_name}"
+            )
 
     def __resize(self, e: tkinter.Event):
         self.layout.height = e.height
@@ -81,7 +91,13 @@ class Browser:
                 continue
             if y + self.layout.vstep < self.scroll:
                 continue
-            self.canvas.create_text(x, y - self.scroll, text=c)
+            emoji_code = format(ord(c), "X")  # Convert to uppercase hex
+            if emoji_code in self.emoji_cache:
+                self.canvas.create_image(
+                    x, y - self.scroll, image=self.emoji_cache[emoji_code]
+                )
+            else:
+                self.canvas.create_text(x, y - self.scroll, text=c)
 
         if ((self.scroll + self.layout.height) / self.layout.content_height) < 1:
             # Draw Background of scroll bar

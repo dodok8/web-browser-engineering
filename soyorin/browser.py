@@ -10,6 +10,7 @@ import platform
 
 class Browser:
     WIDTH, HEIGHT = 800, 600
+    SCROLL_BAR_WIDTH = 20
     SCROLL_STEP = 18
 
     def __init__(self):
@@ -19,7 +20,9 @@ class Browser:
         )
         self.lexer = Lexer()
         self.canvas.pack(fill=tkinter.BOTH, expand=True)
-        self.layout = Layout(Browser.WIDTH, Browser.HEIGHT, hstep=13, vstep=18)
+        self.layout = Layout(
+            Browser.WIDTH - Browser.SCROLL_BAR_WIDTH, Browser.HEIGHT, hstep=13, vstep=18
+        )
 
         self.text = ""
 
@@ -52,10 +55,17 @@ class Browser:
         if self.scroll < 0:
             self.scroll = 0
 
+        max_scroll = max(0, self.layout.content_height - self.layout.height)
+        if self.scroll > max_scroll:
+            self.scroll = max_scroll
+
         self.draw()
 
     def __scroll_down(self, e):
         self.scroll += Browser.SCROLL_STEP
+        max_scroll = max(0, self.layout.content_height - self.layout.height)
+        if self.scroll > max_scroll:
+            self.scroll = max_scroll
         self.draw()
 
     def __scroll_up(self, e):
@@ -72,6 +82,28 @@ class Browser:
             if y + self.layout.vstep < self.scroll:
                 continue
             self.canvas.create_text(x, y - self.scroll, text=c)
+
+        if ((self.scroll + self.layout.height) / self.layout.content_height) < 1:
+            # Draw Background of scroll bar
+            self.canvas.create_rectangle(
+                self.layout.width - self.SCROLL_BAR_WIDTH,
+                0,
+                self.layout.width,
+                self.layout.height,
+                fill="white",
+                width=0,
+            )
+
+            # Draw scroll bar
+            self.canvas.create_rectangle(
+                self.layout.width - self.SCROLL_BAR_WIDTH,
+                (self.scroll / self.layout.content_height) * self.layout.height,
+                self.layout.width,
+                ((self.scroll + self.layout.height) / self.layout.content_height)
+                * self.layout.height,
+                fill="blue",
+                width=0,
+            )
 
     def load(self, url: URL, use_memory_cache: bool = False):
         if use_memory_cache:

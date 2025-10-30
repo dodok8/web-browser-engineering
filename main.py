@@ -3,6 +3,7 @@ import tkinter
 from soyorin.url import URL
 import sys
 import os
+from pathlib import Path
 
 
 def show(body, view_source: bool):
@@ -24,8 +25,6 @@ def show(body, view_source: bool):
         print(text, end="")
 
 
-
-
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         # Check if second argument is provided and is "True" (case-insensitive)
@@ -33,8 +32,6 @@ if __name__ == "__main__":
         Browser().load(URL(sys.argv[1]), use_memory_cache=use_memory_cache)
     else:
         # Load blank.html from the same directory when no argument is provided
-        blank_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "blank.html"
-        )
-        Browser().load(URL(f"file://{blank_path}"))
+        blank_path = Path(__file__).parent / "blank.html"
+        Browser().load(URL(blank_path.as_uri()))
     tkinter.mainloop()

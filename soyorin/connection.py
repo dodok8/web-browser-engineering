@@ -54,7 +54,12 @@ class Connection:
         return url_info.data
 
     def __request_file(self, url_info: FileUrlInfo) -> str:
-        with open(url_info.path or "", "r") as f:
+        path = url_info.path or ""
+        # On Windows, file URLs have paths like /C:/path/file.html
+        # We need to remove the leading slash before the drive letter
+        if len(path) > 2 and path[0] == "/" and path[2] == ":":
+            path = path[1:]
+        with open(path, "r") as f:
             return f.read()
 
     def __request_http(

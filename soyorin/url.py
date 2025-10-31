@@ -32,9 +32,14 @@ class DataUrlInfo:
     data: str
 
 
+@dataclass(frozen=True)
+class AboutUrlInfo:
+    path: Literal["blank"]
+
+
 class URL:
     view_source: bool
-    url_info: HttpUrlInfo | FileUrlInfo | DataUrlInfo
+    url_info: HttpUrlInfo | FileUrlInfo | DataUrlInfo | AboutUrlInfo
 
     def __init__(self, url: str):
         self.view_source = False
@@ -42,6 +47,13 @@ class URL:
             self.view_source = True
             url = url[12:]
 
+        if url.startswith("about:"):
+            scheme, path = url.split(":")
+            if path == "blank":
+                self.url_info = AboutUrlInfo(path=path)
+            else:
+                raise ValueError("Unsupported about: scheme")
+            return
         if url.startswith("data"):
             if not url:
                 # Minimal data URI: "data:,"

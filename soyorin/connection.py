@@ -1,3 +1,4 @@
+from soyorin.url import AboutUrlInfo
 from soyorin.cache import FileCache
 from typing import Dict
 from typing import ClassVar
@@ -61,6 +62,12 @@ class Connection:
             path = path[1:]
         with open(path, "r", encoding="utf-8") as f:
             return f.read()
+
+    def __request_about(self, url_info: AboutUrlInfo) -> str:
+        if url_info.path == "blank":
+            return ""
+        else:
+            raise ValueError("Unsupported about: scheme")
 
     def __request_http(
         self, url_info: HttpUrlInfo, http_options: HttpOptions, redirect_count=20
@@ -265,5 +272,7 @@ class Connection:
             return self.__request_data(url.url_info)
         elif isinstance(url.url_info, FileUrlInfo):
             return self.__request_file(url.url_info)
+        elif isinstance(url.url_info, AboutUrlInfo):
+            return self.__request_about(url.url_info)
         else:
             return self.__request_http(url.url_info, http_options=self.http_options)

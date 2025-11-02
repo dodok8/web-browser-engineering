@@ -276,3 +276,7 @@ class Connection:
             return self.__request_about(url.url_info)
         else:
             return self.__request_http(url.url_info, http_options=self.http_options)
+
+    def close(self):
+        for connection in self.connection_pool:
+            self.connection_pool[connection].close()

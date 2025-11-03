@@ -1,3 +1,6 @@
+from tkinter import PhotoImage
+from typing import Optional
+from typing import Dict
 from pathlib import Path
 import os
 from soyorin.layout import Layout
@@ -37,14 +40,11 @@ class Browser:
 
         self.window.bind("<Configure>", self.__resize)
 
-        self.emoji_cache = {}
+        self.emoji_cache: Dict[str, Optional[PhotoImage]] = {}
         emoji_path = Path(__file__).parent.parent / "emoji"
         for emoji_file_name in os.listdir(emoji_path):
             emoji_code = emoji_file_name.strip(".png")
-            self.emoji_cache[emoji_code] = tkinter.PhotoImage(
-                file=f"emoji/{emoji_file_name}"
-            )
-
+            self.emoji_cache[emoji_code] = None
         self.rtl = False
 
     def __resize(self, e: tkinter.Event):
@@ -95,6 +95,11 @@ class Browser:
                 continue
             emoji_code = format(ord(c), "X")  # Convert to uppercase hex
             if emoji_code in self.emoji_cache:
+                if self.emoji_cache[emoji_code] is None:
+                    self.emoji_cache[emoji_code] = tkinter.PhotoImage(
+                        file=f"emoji/{emoji_code}.png"
+                    )
+
                 self.canvas.create_image(
                     x, y - self.scroll, image=self.emoji_cache[emoji_code]
                 )

@@ -19,19 +19,42 @@ class Layout:
         self.display_list = []
         self.content_height = self.vstep
 
-        # 연습문제 2-7 텍스트 방향
         cursor_x, cursor_y = self.hstep, self.vstep
-        for c in text:
+        idx = 0
+        while idx < len(text):
+            c = text[idx]
             # 연습문제 2-1 줄바꿈
             if c == "\n":
                 cursor_y += self.vstep
                 cursor_x = self.hstep
+                idx += 1
+                continue
 
-            emoji = self.emoji_cache.get(format(ord(c), "X"))
-            if emoji is not None:
-                self.display_list.append((cursor_x, cursor_y, emoji))
+            curr_code = format(ord(c), "X")
+
+            best_match = self.emoji_cache.get(curr_code)
+            best_match_length = 0
+
+            emoji_codes = [curr_code]
+            for jdx in range(1, 11):
+                if idx + jdx >= len(text):
+                    break
+                curr_code = format(ord(text[idx + jdx]), "X")
+                emoji_codes.append(curr_code)
+
+                combined_code = "-".join(emoji_codes)
+                emoji = self.emoji_cache.get(combined_code)
+
+                if emoji is not None:
+                    best_match = emoji
+                    best_match_length = jdx
+
+            if best_match is not None:
+                self.display_list.append((cursor_x, cursor_y, best_match))
+                idx += best_match_length + 1
             else:
                 self.display_list.append((cursor_x, cursor_y, c))
+                idx += 1
 
             cursor_x += self.hstep
             if cursor_x >= self.width - self.hstep:

@@ -16,7 +16,6 @@ class EmojiCache:
 
             max_len = max(max_len, len(multi_emoji_code.split("-")))
             self.emoji_cache[multi_emoji_code] = None
-        print(f"max_len: {max_len}")
 
     def get(self, emoji_code: str):
         if emoji_code in self.emoji_cache:

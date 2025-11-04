@@ -29,14 +29,11 @@ if __name__ == "__main__":
     browser = Browser()
     # 캐싱 등으로 소요되는 시간을 감안해서 미리 객체를 생성해 놓는 식으로 변경
     use_memory_cache = False
-    rtl = False
     try:
         if len(sys.argv) > 1:
             # Check if second argument is provided and is "True" (case-insensitive)
             if len(sys.argv) >= 2:
                 use_memory_cache = "--secret" in sys.argv
-                rtl = "--rtl" in sys.argv
-                browser.rtl = rtl
             path = sys.argv[1]
             url = URL(path)
         else:

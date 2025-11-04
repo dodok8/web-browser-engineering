@@ -45,12 +45,11 @@ class Browser:
         for emoji_file_name in os.listdir(emoji_path):
             emoji_code = emoji_file_name.strip(".png")
             self.emoji_cache[emoji_code] = None
-        self.rtl = False
 
     def __resize(self, e: tkinter.Event):
         self.layout.height = e.height
         self.layout.width = e.width
-        self.layout.update_layout(self.text, self.rtl)
+        self.layout.update_layout(self.text)
         self.draw()
 
     def __scroll_wheel(self, e: tkinter.Event):
@@ -137,5 +136,5 @@ class Browser:
         connection = Connection(http_options={"http_version": "1.1"}, cache=cache)
         body = connection.request(url=url)
         self.text = self.lexer.lex(body, view_source=url.view_source)
-        self.layout.update_layout(self.text, self.rtl)
+        self.layout.update_layout(self.text)
         self.draw()

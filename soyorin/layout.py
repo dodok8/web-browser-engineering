@@ -12,35 +12,21 @@ class Layout:
 
         self.content_height = hstep
 
-    def update_layout(self, text, rtl=False):
+    def update_layout(self, text):
         self.display_list = []
         self.content_height = self.vstep
 
         # 연습문제 2-7 텍스트 방향
-        if rtl:
-            cursor_x, cursor_y = self.width - self.hstep, self.vstep
-            for c in text:
-                if c == "\n":
-                    cursor_y += self.vstep
-                    cursor_x = self.width - self.hstep
-                self.display_list.append((cursor_x, cursor_y, c))
+        cursor_x, cursor_y = self.hstep, self.vstep
+        for c in text:
+            # 연습문제 2-1 줄바꿈
+            if c == "\n":
+                cursor_y += self.vstep
+                cursor_x = self.hstep
+            self.display_list.append((cursor_x, cursor_y, c))
 
-                cursor_x -= self.hstep
-                if cursor_x <= 0:
-                    cursor_y += self.vstep
-                    cursor_x = self.width - self.hstep
-            self.content_height = cursor_y
-        else:
-            cursor_x, cursor_y = self.hstep, self.vstep
-            for c in text:
-                # 연습문제 2-1 줄바꿈
-                if c == "\n":
-                    cursor_y += self.vstep
-                    cursor_x = self.hstep
-                self.display_list.append((cursor_x, cursor_y, c))
-
-                cursor_x += self.hstep
-                if cursor_x >= self.width - self.hstep:
-                    cursor_y += self.vstep
-                    cursor_x = self.hstep
-            self.content_height = cursor_y
+            cursor_x += self.hstep
+            if cursor_x >= self.width - self.hstep:
+                cursor_y += self.vstep
+                cursor_x = self.hstep
+        self.content_height = cursor_y

@@ -1,8 +1,3 @@
-from tkinter import PhotoImage
-from typing import Optional
-from typing import Dict
-from pathlib import Path
-import os
 from soyorin.layout import Layout
 from soyorin.connection import Connection
 from soyorin.cache import FileCache, InMemoryCache
@@ -14,20 +9,15 @@ import platform
 
 
 class Browser:
-    WIDTH, HEIGHT = 800, 600
     SCROLL_BAR_WIDTH = 20
     SCROLL_STEP = 18
 
     def __init__(self):
         self.window = tkinter.Tk()
-        self.canvas = tkinter.Canvas(
-            self.window, width=Browser.WIDTH, height=Browser.HEIGHT
-        )
+        self.canvas = tkinter.Canvas(self.window, width=800, height=600)
         self.lexer = Lexer()
         self.canvas.pack(fill=tkinter.BOTH, expand=True)
-        self.layout = Layout(
-            Browser.WIDTH - Browser.SCROLL_BAR_WIDTH, Browser.HEIGHT, hstep=13, vstep=18
-        )
+        self.layout = Layout(800 - Browser.SCROLL_BAR_WIDTH, 600, hstep=13, vstep=18)
 
         self.text = ""
 
@@ -39,12 +29,6 @@ class Browser:
         self.window.bind("<Button-5>", self.__scroll_wheel)
 
         self.window.bind("<Configure>", self.__resize)
-
-        self.emoji_cache: Dict[str, Optional[PhotoImage]] = {}
-        emoji_path = Path(__file__).parent.parent / "emoji"
-        for emoji_file_name in os.listdir(emoji_path):
-            emoji_code = emoji_file_name.strip(".png")
-            self.emoji_cache[emoji_code] = None
 
     def __resize(self, e: tkinter.Event):
         self.layout.height = e.height
@@ -92,20 +76,11 @@ class Browser:
                 continue
             if y + self.layout.vstep < self.scroll:
                 continue
-            emoji_code = format(ord(c), "X")  # Convert to uppercase hex
-            if emoji_code in self.emoji_cache:
-                if self.emoji_cache[emoji_code] is None:
-                    self.emoji_cache[emoji_code] = tkinter.PhotoImage(
-                        file=f"emoji/{emoji_code}.png"
-                    )
-
-                self.canvas.create_image(
-                    x, y - self.scroll, image=self.emoji_cache[emoji_code]
-                )
-            else:
+            if isinstance(c, str):
                 self.canvas.create_text(x, y - self.scroll, text=c)
-
-        if ((self.scroll + self.layout.height) / self.layout.content_height) < 1:
+            else:
+                self.canvas.create_image(x, y - self.scroll, image=c)
+        if ((self.scroll + self.layout.height) / self.layout.content_height) <= 1:
             # Draw Background of scroll bar
             self.canvas.create_rectangle(
                 self.layout.width - self.SCROLL_BAR_WIDTH,

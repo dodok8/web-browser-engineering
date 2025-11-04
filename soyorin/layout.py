@@ -1,3 +1,5 @@
+from soyorin.emoji import EmojiCache
+import tkinter
 from typing import Tuple
 
 
@@ -8,9 +10,10 @@ class Layout:
         self.height = height
         self.hstep = hstep
         self.vstep = vstep
-        self.display_list: list[Tuple[int, int, str]] = []
+        self.display_list: list[Tuple[int, int, tkinter.PhotoImage | str]] = []
 
         self.content_height = hstep
+        self.emoji_cache = EmojiCache()
 
     def update_layout(self, text):
         self.display_list = []
@@ -23,7 +26,12 @@ class Layout:
             if c == "\n":
                 cursor_y += self.vstep
                 cursor_x = self.hstep
-            self.display_list.append((cursor_x, cursor_y, c))
+
+            emoji = self.emoji_cache.get(format(ord(c), "X"))
+            if emoji is not None:
+                self.display_list.append((cursor_x, cursor_y, emoji))
+            else:
+                self.display_list.append((cursor_x, cursor_y, c))
 
             cursor_x += self.hstep
             if cursor_x >= self.width - self.hstep:

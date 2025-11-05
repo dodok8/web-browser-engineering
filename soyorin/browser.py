@@ -9,7 +9,7 @@ import platform
 
 
 class Browser:
-    SCROLL_BAR_WIDTH = 20
+    SCROLL_BAR_WIDTH = 10
     SCROLL_STEP = 18
 
     def __init__(self):
@@ -77,20 +77,10 @@ class Browser:
             if y + self.layout.vstep < self.scroll:
                 continue
             if isinstance(c, str):
-                self.canvas.create_text(x, y - self.scroll, text=c)
+                self.canvas.create_text(x, y - self.scroll, text=c, anchor="nw")
             else:
-                self.canvas.create_image(x, y - self.scroll, image=c)
+                self.canvas.create_image(x, y - self.scroll, image=c, anchor="nw")
         if ((self.scroll + self.layout.height) / self.layout.content_height) <= 1:
-            # Draw Background of scroll bar
-            self.canvas.create_rectangle(
-                self.layout.width - self.SCROLL_BAR_WIDTH,
-                0,
-                self.layout.width,
-                self.layout.height,
-                fill="white",
-                width=0,
-            )
-
             # Draw scroll bar
             self.canvas.create_rectangle(
                 self.layout.width - self.SCROLL_BAR_WIDTH,

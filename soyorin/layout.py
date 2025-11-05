@@ -10,13 +10,12 @@ class Layout:
         self.height = height
         self.hstep = hstep
         self.vstep = vstep
-        self.display_list: list[Tuple[int, int, tkinter.PhotoImage | str]] = []
 
         self.content_height = hstep
         self.emoji_cache = EmojiCache()
 
-    def update_layout(self, text):
-        self.display_list = []
+    def layout(self, text: str):
+        display_list: list[Tuple[float, float, tkinter.PhotoImage | str]] = []
         self.content_height = self.vstep
 
         cursor_x, cursor_y = self.hstep, self.vstep
@@ -50,10 +49,10 @@ class Layout:
                     best_match_length = jdx
 
             if best_match is not None:
-                self.display_list.append((cursor_x, cursor_y, best_match))
+                display_list.append((cursor_x, cursor_y, best_match))
                 idx += best_match_length + 1
             else:
-                self.display_list.append((cursor_x, cursor_y, c))
+                display_list.append((cursor_x, cursor_y, c))
                 idx += 1
 
             cursor_x += self.hstep
@@ -61,3 +60,5 @@ class Layout:
                 cursor_y += self.vstep
                 cursor_x = self.hstep
         self.content_height = cursor_y
+
+        return display_list

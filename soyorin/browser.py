@@ -18,6 +18,7 @@ class Browser:
         self.lexer = Lexer()
         self.canvas.pack(fill=tkinter.BOTH, expand=True)
         self.layout = Layout(800 - Browser.SCROLL_BAR_WIDTH, 600, hstep=13, vstep=18)
+        self.display_list = []
 
         self.text = ""
 
@@ -33,7 +34,7 @@ class Browser:
     def __resize(self, e: tkinter.Event):
         self.layout.height = e.height
         self.layout.width = e.width
-        self.layout.update_layout(self.text)
+        self.display_list = self.layout.layout(self.text)
         self.draw()
 
     def __scroll_wheel(self, e: tkinter.Event):
@@ -71,7 +72,7 @@ class Browser:
 
     def draw(self):
         self.canvas.delete("all")
-        for x, y, c in self.layout.display_list:
+        for x, y, c in self.display_list:
             if y > self.scroll + self.layout.height:
                 continue
             if y + self.layout.vstep < self.scroll:
@@ -101,5 +102,5 @@ class Browser:
         connection = Connection(http_options={"http_version": "1.1"}, cache=cache)
         body = connection.request(url=url)
         self.text = self.lexer.lex(body, view_source=url.view_source)
-        self.layout.update_layout(self.text)
+        self.display_list = self.layout.layout(self.text)
         self.draw()

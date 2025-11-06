@@ -1,17 +1,43 @@
+from dataclasses import dataclass
+
+
+@dataclass
+class Text:
+    text: str
+
+
+@dataclass
+class Tag:
+    tag: str
+
+
 class Lexer:
     def lex(self, body: str, view_source: bool):
         if view_source:
-            text = body
+            out: list[Text | Tag] = [Text(body)]
+            return out
         else:
+            out: list[Text | Tag] = []
+            buffer = ""
             in_tag = False
-            text = ""
             for c in body:
                 if c == "<":
                     in_tag = True
+                    if buffer:
+                        buffer = buffer.replace("&lt;", "<")
+                        buffer = buffer.replace("&gt;", ">")
+                        out.append(Text(buffer))
+                    buffer = ""
                 elif c == ">":
                     in_tag = False
-                elif not in_tag:
-                    text += c
-            text = text.replace("&lt;", "<")
-            text = text.replace("&gt;", ">")
-        return text
+                    out.append(Tag(buffer))
+                    buffer = ""
+                else:
+                    buffer += c
+            # Don't forget any remaining text after the last tag
+            if buffer:
+                buffer = buffer.replace("&lt;", "<")
+                buffer = buffer.replace("&gt;", ">")
+                out.append(Text(buffer))
+        print(out)
+        return out

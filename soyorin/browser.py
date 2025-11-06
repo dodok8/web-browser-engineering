@@ -1,9 +1,12 @@
+from tkinter.font import Font
+from tkinter import PhotoImage
+from soyorin.lexer import Text
+from soyorin.lexer import Tag
 from soyorin.layout import Layout
 from soyorin.connection import Connection
 from soyorin.cache import FileCache, InMemoryCache
 from soyorin.url import URL
 from soyorin.lexer import Lexer
-
 import tkinter
 import platform
 
@@ -18,9 +21,11 @@ class Browser:
         self.lexer = Lexer()
         self.canvas.pack(fill=tkinter.BOTH, expand=True)
         self.layout = Layout(800 - Browser.SCROLL_BAR_WIDTH, 600, hstep=13, vstep=18)
-        self.display_list = []
+        self.display_list: list[
+            tuple[float, float, PhotoImage] | tuple[float, float, str, Font]
+        ] = []
 
-        self.text = ""
+        self.text: list[Tag | Text] = []
 
         self.scroll = 0.0
         self.window.bind("<Down>", self.__scroll_down)
@@ -51,7 +56,7 @@ class Browser:
         if self.scroll < 0:
             self.scroll = 0
 
-        max_scroll = max(0, self.layout.content_height - self.layout.height)
+        max_scroll = max(0.0, self.layout.content_height - self.layout.height)
         if self.scroll > max_scroll:
             self.scroll = max_scroll
 
@@ -59,7 +64,7 @@ class Browser:
 
     def __scroll_down(self, e):
         self.scroll += Browser.SCROLL_STEP
-        max_scroll = max(0, self.layout.content_height - self.layout.height)
+        max_scroll = max(0.0, self.layout.content_height - self.layout.height)
         if self.scroll > max_scroll:
             self.scroll = max_scroll
         self.draw()
@@ -72,15 +77,19 @@ class Browser:
 
     def draw(self):
         self.canvas.delete("all")
-        for x, y, c in self.display_list:
+        for item in self.display_list:
+            x = item[0]
+            y = item[1]
             if y > self.scroll + self.layout.height:
                 continue
             if y + self.layout.vstep < self.scroll:
                 continue
-            if isinstance(c, str):
-                self.canvas.create_text(x, y - self.scroll, text=c, anchor="nw")
-            else:
-                self.canvas.create_image(x, y - self.scroll, image=c, anchor="nw")
+            if len(item) == 4:  # Text with font: (x, y, text, font)
+                self.canvas.create_text(
+                    x, y - self.scroll, text=item[2], anchor="nw", font=item[3]
+                )
+            else:  # Emoji/Image: (x, y, image)
+                self.canvas.create_image(x, y - self.scroll, image=item[2], anchor="nw")
         if ((self.scroll + self.layout.height) / self.layout.content_height) <= 1:
             # Draw scroll bar
             self.canvas.create_rectangle(

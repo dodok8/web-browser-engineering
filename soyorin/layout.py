@@ -2,21 +2,40 @@ from soyorin.lexer import Tag
 from soyorin.lexer import Text
 from soyorin.emoji import EmojiCache
 import tkinter
-import tkinter.font
-from typing import Tuple
+from tkinter.font import Font
+from tkinter import PhotoImage
+from typing import Tuple, Literal
 import regex
+
+HSTEP = 13.0
+VSTEP = 18.0
 
 
 class Layout:
 
-    def __init__(self, width: float, height: float, hstep: float, vstep: float):
+    def __init__(
+        self,
+        width: float,
+        height: float,
+        tokens: list[Tag | Text],
+    ):
         self.width = width
         self.height = height
-        self.hstep = hstep
-        self.vstep = vstep
-
-        self.content_height = hstep
+        self.cursor_x = HSTEP
+        self.cursor_y = VSTEP
+        self.content_height = HSTEP
         self.emoji_cache = EmojiCache()
+
+        self.display_list: list[
+            tuple[float, float, PhotoImage] | tuple[float, float, str, Font]
+        ] = []
+
+        self.weight: Literal["normal", "bold"] = "normal"
+        self.style: Literal["roman", "italic"] = "roman"
+        self.size = 12
+
+        for tok in tokens:
+            self.token(tok)
 
     def split_text_and_emojis(self, text: str):
 
@@ -56,45 +75,42 @@ class Layout:
 
         return result
 
-    def layout(self, tokens: list[Text | Tag]):
-        display_list: list[
-            Tuple[float, float, tkinter.PhotoImage]
-            | Tuple[float, float, str, tkinter.font.Font]
-        ] = []
-        self.content_height = self.vstep
-        cursor_x, cursor_y = self.hstep, self.vstep
+    def token(self, tok: Text | Tag):
 
-        weight = "normal"
-        style = "roman"
+        if isinstance(tok, Text):
+            for is_emoji, word in self.split_text_and_emojis(tok.text):
+                self.word(is_emoji, word)
+            self.content_height = self.cursor_y
+        elif tok.tag == "i":
+            self.style = "italic"
+        elif tok.tag == "/i":
+            self.style = "roman"
+        elif tok.tag == "b":
+            self.weight = "bold"
+        elif tok.tag == "/b":
+            self.weight = "normal"
+        elif tok.tag == "small":
+            self.size -= 2
+        elif tok.tag == "/small":
+            self.size += 2
+        elif tok.tag == "big":
+            self.size -= 4
+        elif tok.tag == "/big":
+            self.size += 4
 
-        for tok in tokens:
-            if isinstance(tok, Text):
-                for is_emoji, word in self.split_text_and_emojis(tok.text):
-                    font = tkinter.font.Font(size=16, weight=weight, slant=style)
+    def word(self, is_emoji: bool, word: str):
+        font = tkinter.font.Font(size=self.size, weight=self.weight, slant=self.style)
 
-                    if is_emoji:
-                        w = font.measure(word[0])
-                        emoji_code = "-".join(
-                            [format(ord(letter), "X") for letter in word]
-                        )
-                        emoji_picture = self.emoji_cache.get(emoji_code)
-                        if emoji_picture:
-                            display_list.append((cursor_x, cursor_y, emoji_picture))
-                    else:
-                        w = font.measure(word)
-                        display_list.append((cursor_x, cursor_y, word, font))
-                    cursor_x += w + font.measure(" ")
-                    if cursor_x + w >= self.width - self.hstep:
-                        cursor_y += font.metrics("linespace") * 1.25
-                        cursor_x = self.hstep
-                self.content_height = cursor_y
-            elif tok.tag == "i":
-                style = "italic"
-            elif tok.tag == "/i":
-                style = "roman"
-            elif tok.tag == "b":
-                weight = "bold"
-            elif tok.tag == "/b":
-                weight = "normal"
-
-        return display_list
+        if is_emoji:
+            w = font.measure(word[0])
+            emoji_code = "-".join([format(ord(letter), "X") for letter in word])
+            emoji_picture = self.emoji_cache.get(emoji_code)
+            if emoji_picture:
+                self.display_list.append((self.cursor_x, self.cursor_y, emoji_picture))
+        else:
+            w = font.measure(word)
+            self.display_list.append((self.cursor_x, self.cursor_y, word, font))
+        self.cursor_x += w + font.measure(" ")
+        if self.cursor_x + w >= self.width - HSTEP:
+            self.cursor_y += font.metrics("linespace") * 1.25
+            self.cursor_x = HSTEP

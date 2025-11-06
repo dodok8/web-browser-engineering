@@ -1,5 +1,4 @@
-from tkinter.font import Font
-from tkinter import PhotoImage
+from soyorin.layout import VSTEP
 from soyorin.lexer import Text
 from soyorin.lexer import Tag
 from soyorin.layout import Layout
@@ -20,12 +19,8 @@ class Browser:
         self.canvas = tkinter.Canvas(self.window, width=800, height=600)
         self.lexer = Lexer()
         self.canvas.pack(fill=tkinter.BOTH, expand=True)
-        self.layout = Layout(800 - Browser.SCROLL_BAR_WIDTH, 600, hstep=13, vstep=18)
-        self.display_list: list[
-            tuple[float, float, PhotoImage] | tuple[float, float, str, Font]
-        ] = []
 
-        self.text: list[Tag | Text] = []
+        self.tokens: list[Tag | Text] = []
 
         self.scroll = 0.0
         self.window.bind("<Down>", self.__scroll_down)
@@ -36,10 +31,19 @@ class Browser:
 
         self.window.bind("<Configure>", self.__resize)
 
+        self.width = 800
+        self.height = 600
+        self.layout = Layout(
+            self.width - Browser.SCROLL_BAR_WIDTH, self.height, tokens=[]
+        )
+
     def __resize(self, e: tkinter.Event):
-        self.layout.height = e.height
-        self.layout.width = e.width
-        self.display_list = self.layout.layout(self.text)
+        self.height = e.height
+        self.width = e.width
+        self.layout = Layout(
+            self.width - Browser.SCROLL_BAR_WIDTH, self.height, tokens=self.tokens
+        )
+        self.display_list = self.layout.display_list
         self.draw()
 
     def __scroll_wheel(self, e: tkinter.Event):
@@ -82,7 +86,7 @@ class Browser:
             y = item[1]
             if y > self.scroll + self.layout.height:
                 continue
-            if y + self.layout.vstep < self.scroll:
+            if y + VSTEP < self.scroll:
                 continue
             if len(item) == 4:  # Text with font: (x, y, text, font)
                 self.canvas.create_text(
@@ -110,6 +114,7 @@ class Browser:
 
         connection = Connection(http_options={"http_version": "1.1"}, cache=cache)
         body = connection.request(url=url)
-        self.text = self.lexer.lex(body, view_source=url.view_source)
-        self.display_list = self.layout.layout(self.text)
+        self.tokens = self.lexer.lex(body, view_source=url.view_source)
+        self.layout = Layout(self.width, self.height, self.tokens)
+        self.display_list = self.layout.display_list
         self.draw()

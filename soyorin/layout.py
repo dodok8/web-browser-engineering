@@ -94,9 +94,9 @@ class Layout:
         elif tok.tag == "/small":
             self.size += 2
         elif tok.tag == "big":
-            self.size -= 4
-        elif tok.tag == "/big":
             self.size += 4
+        elif tok.tag == "/big":
+            self.size -= 4
 
     def word(self, is_emoji: bool, word: str):
         font = tkinter.font.Font(size=self.size, weight=self.weight, slant=self.style)

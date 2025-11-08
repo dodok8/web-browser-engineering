@@ -35,7 +35,7 @@ class Lexer:
                 else:
                     buffer += c
             # Don't forget any remaining text after the last tag
-            if buffer:
+            if buffer and not in_tag:
                 buffer = buffer.replace("&lt;", "<")
                 buffer = buffer.replace("&gt;", ">")
                 out.append(Text(buffer))

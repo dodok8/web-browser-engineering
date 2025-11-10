@@ -44,7 +44,8 @@ class Layout:
         self.weight: Literal["normal", "bold"] = "normal"
         self.style: Literal["roman", "italic"] = "roman"
         self.size = 12
-        self.line = []
+        self.line: list[tuple[float, str, Font]] = []
+        self.is_center = False
 
         for tok in tokens:
             self.token(tok)
@@ -115,6 +116,12 @@ class Layout:
         elif tok.tag == "/p":
             self.flush()
             self.cursor_y += VSTEP
+        elif tok.tag == "center":
+            self.flush()
+            self.is_center = True
+        elif tok.tag == "/center":
+            self.flush()
+            self.is_center = False
 
     def word(self, is_emoji: bool, word: str):
         font = get_font(self.size, self.weight, self.style)
@@ -138,9 +145,17 @@ class Layout:
         metrics = [font.metrics() for x, word, font in self.line]
         max_ascent = max([metric["ascent"] for metric in metrics])
         baseline = self.cursor_y + 1.25 * max_ascent
-        for x, word, font in self.line:
-            y = baseline - font.metrics("ascent")
-            self.display_list.append((x, y, word, font))
+        if self.is_center:
+            tot_x = sum([font.measure(word) for _, word, font in self.line])
+            x = (self.width - tot_x) / 2.0
+            for _, word, font in self.line:
+                y = baseline - font.metrics("ascent")
+                self.display_list.append((x, y, word, font))
+                x += font.measure(word + " ")
+        else:
+            for x, word, font in self.line:
+                y = baseline - font.metrics("ascent")
+                self.display_list.append((x, y, word, font))
 
         max_descent = max([metric["descent"] for metric in metrics])
         self.cursor_y = baseline + 1.25 * max_descent

@@ -14,6 +14,7 @@ FONTS = {}
 
 
 def get_font(size, weight, style):
+    size = int(size)  # Ensure size is always an integer
     key = (size, weight, style)
     if key not in FONTS:
         font = tkinter.font.Font(size=size, weight=weight, slant=style)
@@ -45,7 +46,9 @@ class Layout:
         self.style: Literal["roman", "italic"] = "roman"
         self.size = 12
         self.line: list[tuple[float, str, Font]] = []
+        self.line_sup_depths: list[int] = []
         self.is_center = False
+        self.sup_depth = 0
 
         for tok in tokens:
             self.token(tok)
@@ -104,6 +107,7 @@ class Layout:
         elif tok.tag == "/b":
             self.weight = "normal"
         elif tok.tag == "small":
+            print(self.sup_depth)
             self.size -= 2
         elif tok.tag == "/small":
             self.size += 2
@@ -113,18 +117,24 @@ class Layout:
             self.size -= 4
         elif tok.tag == "br":
             self.flush()
+        elif tok.tag == "br /":
+            self.flush()
         elif tok.tag == "/p":
             self.flush()
-            self.cursor_y += VSTEP
+            # self.cursor_y += VSTEP
         elif tok.tag == "center":
             self.flush()
             self.is_center = True
         elif tok.tag == "/center":
             self.flush()
             self.is_center = False
+        elif tok.tag == "sup":
+            self.sup_depth += 1
+        elif tok.tag == "/sup":
+            self.sup_depth -= 1
 
     def word(self, is_emoji: bool, word: str):
-        font = get_font(self.size, self.weight, self.style)
+        font = get_font(self.size / (2**self.sup_depth), self.weight, self.style)
 
         if is_emoji:
             w = font.measure(word[0])
@@ -135,6 +145,7 @@ class Layout:
         else:
             w = font.measure(word)
             self.line.append((self.cursor_x, word, font))
+            self.line_sup_depths.append(self.sup_depth)
         self.cursor_x += w + font.measure(" ")
         if self.cursor_x + w >= self.width - HSTEP:
             self.flush()
@@ -144,21 +155,34 @@ class Layout:
             return
         metrics = [font.metrics() for x, word, font in self.line]
         max_ascent = max([metric["ascent"] for metric in metrics])
-        baseline = self.cursor_y + 1.25 * max_ascent
+        tot_sup_offset = max(self.line_sup_depths)
+        baseline = (
+            self.cursor_y
+            + (0.25 + sum([1 / 2**idx for idx in range(tot_sup_offset + 1)]))
+            * max_ascent
+        )
         if self.is_center:
             tot_x = sum([font.measure(word) for _, word, font in self.line])
             x = (self.width - tot_x) / 2.0
-            for _, word, font in self.line:
-                y = baseline - font.metrics("ascent")
+            for idx, (_, word, font) in enumerate(self.line):
+                if self.line_sup_depths[idx] > 0:
+                    y = baseline - max_ascent
+                else:
+                    y = baseline - font.metrics("ascent")
                 self.display_list.append((x, y, word, font))
                 x += font.measure(word + " ")
         else:
-            for x, word, font in self.line:
-                y = baseline - font.metrics("ascent")
+            for idx, (x, word, font) in enumerate(self.line):
+                if self.line_sup_depths[idx] > 0:
+                    y = baseline - max_ascent
+                else:
+                    y = baseline - font.metrics("ascent")
                 self.display_list.append((x, y, word, font))
+                x += font.measure(word + " ")
 
         max_descent = max([metric["descent"] for metric in metrics])
         self.cursor_y = baseline + 1.25 * max_descent
 
         self.cursor_x = HSTEP
         self.line = []
+        self.line_sup_depths = []

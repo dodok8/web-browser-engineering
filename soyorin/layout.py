@@ -105,8 +105,6 @@ class Layout:
     def token(self, tok: Text | Tag):
 
         if isinstance(tok, Text):
-            if self.is_pre:
-                print([word for _, word in self.split_text_and_emojis(tok.text)])
             for is_emoji, word in self.split_text_and_emojis(tok.text):
                 self.word(is_emoji, word)
             self.content_height = self.cursor_y
@@ -161,11 +159,28 @@ class Layout:
             if emoji_picture:
                 self.display_list.append((self.cursor_x, self.cursor_y, emoji_picture))
         elif self.is_pre:
+            if "\n" in word:
+                for letter in word:
+                    if letter == "\n":
+                        if len(self.line) == 0:
+                            self.cursor_y += VSTEP
+                        else:
+                            self.flush()
+                return
             font = get_font(
-                self.size / (2**self.sup_depth), self.weight, self.style, "Courier New"
+                self.size / (2**self.sup_depth),
+                self.weight,
+                self.style,
+                "Courier New",
             )
             w = font.measure(word)
-            self.line.append((self.cursor_x, word, font))
+            self.line.append(
+                (
+                    self.cursor_x,
+                    word,
+                    font,
+                )
+            )
             self.line_sup_depths.append(self.sup_depth)
         else:
             w = font.measure(word)

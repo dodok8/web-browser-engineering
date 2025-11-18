@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-type Token = Text | Tag
+type Token = Text | Element
 
 
 class Text:
-    def __init__(self, text: str, parent: Tag):
+    def __init__(self, text: str, parent: Element):
         self.text = text
         self.children = []
         self.parent = parent
 
 
-class Tag:
-    def __init__(self, tag: str, parent: Tag):
+class Element:
+    def __init__(self, tag: str, parent: Element | None):
         self.tag = tag
         self.children: list[Token] = []
         self.parent = parent
@@ -20,7 +20,7 @@ class Tag:
 class HTMLParser:
     def __init__(self, body: str):
         self.body = body
-        self.unfinished = []
+        self.unfinished: list[Element] = []
 
     def prase(self):
         text = ""
@@ -41,30 +41,30 @@ class HTMLParser:
             self.add_text(text)
         return self.finish()
 
-    def lex(self, body: str, view_source: bool):
-        if view_source:
-            out: list[Text | Tag] = [Text(body)]
-            return out
+    def add_text(self, text: str):
+        parent = self.unfinished[-1]
+        text = text.replace("&lt;", "<")
+        text = text.replace("&gt;", ">")
+        node = Text(text, parent)
+        parent.children.append(node)
+
+    def add_tag(self, tag: str):
+        if tag.startswith("/"):
+            # 닫는 태그
+            if len(self.unfinished) == 1:
+                return
+            node = self.unfinished.pop()
+            parent = self.unfinished[-1]
+            parent.children.append(node)
         else:
-            out: list[Text | Tag] = []
-            buffer = ""
-            in_tag = False
-            for c in body:
-                if c == "<":
-                    in_tag = True
-                    if buffer:
-                        buffer = buffer.replace("&lt;", "<")
-                        buffer = buffer.replace("&gt;", ">")
-                        out.append(Text(buffer))
-                    buffer = ""
-                elif c == ">":
-                    in_tag = False
-                    out.append(Tag(buffer))
-                    buffer = ""
-                else:
-                    buffer += c
-            if buffer and not in_tag:
-                buffer = buffer.replace("&lt;", "<")
-                buffer = buffer.replace("&gt;", ">")
-                out.append(Text(buffer))
-        return out
+            # 여는 태그
+            parent = self.unfinished[-1] if self.unfinished else None
+            node = Element(tag, parent)
+            self.unfinished.append(node)
+
+    def finish(self):
+        while len(self.unfinished) > 1:
+            node = self.unfinished.pop()
+            parent = self.unfinished[-1]
+            parent.children.append(node)
+        return self.unfinished.pop()

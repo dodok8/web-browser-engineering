@@ -210,7 +210,7 @@ class Layout:
                 else:
                     y = baseline - font.metrics("ascent")
                 self.display_list.append((x, y, word, font))
-                x += font.measure(word + " ")
+                x += font.measure(word)
         else:
             for idx, (x, word, font) in enumerate(self.line):
                 if self.line_sup_depths[idx] > 0:

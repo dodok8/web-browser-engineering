@@ -9,12 +9,18 @@ class Text:
         self.children = []
         self.parent = parent
 
+    def __repr__(self):
+        return repr(self.text)
+
 
 class Element:
     def __init__(self, tag: str, parent: Element | None):
         self.tag = tag
         self.children: list[Token] = []
         self.parent = parent
+
+    def __repr__(self):
+        return f"<{self.tag}>"
 
 
 class HTMLParser:
@@ -42,6 +48,8 @@ class HTMLParser:
         return self.finish()
 
     def add_text(self, text: str):
+        if text.isspace():
+            return
         parent = self.unfinished[-1]
         text = text.replace("&lt;", "<")
         text = text.replace("&gt;", ">")
@@ -49,7 +57,9 @@ class HTMLParser:
         parent.children.append(node)
 
     def add_tag(self, tag: str):
-        if tag.startswith("/"):
+        if tag.startswith("!"):
+            return
+        elif tag.startswith("/"):
             # 닫는 태그
             if len(self.unfinished) == 1:
                 return
@@ -68,3 +78,9 @@ class HTMLParser:
             parent = self.unfinished[-1]
             parent.children.append(node)
         return self.unfinished.pop()
+
+
+def print_tree(node: Token, indent=0):
+    print(" " * indent, node)
+    for child in node.children:
+        print_tree(child, indent + 2)

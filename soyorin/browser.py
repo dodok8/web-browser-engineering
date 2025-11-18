@@ -1,11 +1,10 @@
 from soyorin.layout import VSTEP
-from soyorin.lexer import Text
-from soyorin.lexer import Tag
+from soyorin.lexer import Token
 from soyorin.layout import Layout
 from soyorin.connection import Connection
 from soyorin.cache import FileCache, InMemoryCache
 from soyorin.url import URL
-from soyorin.lexer import Lexer
+from soyorin.lexer import HTMLParser, print_tree
 import tkinter
 import platform
 
@@ -17,10 +16,9 @@ class Browser:
     def __init__(self):
         self.window = tkinter.Tk()
         self.canvas = tkinter.Canvas(self.window, width=800, height=600)
-        self.lexer = Lexer()
         self.canvas.pack(fill=tkinter.BOTH, expand=True)
 
-        self.tokens: list[Tag | Text] = []
+        self.tokens: list[Token] = []
 
         self.scroll = 0.0
         self.window.bind("<Down>", self.__scroll_down)
@@ -114,7 +112,9 @@ class Browser:
 
         connection = Connection(http_options={"http_version": "1.1"}, cache=cache)
         body = connection.request(url=url)
-        self.tokens = self.lexer.lex(body, view_source=url.view_source)
+        nodes = HTMLParser(body).prase()
+        print_tree(nodes)
+
         self.layout = Layout(self.width, self.height, self.tokens)
         self.display_list = self.layout.display_list
         self.draw()

@@ -1,7 +1,6 @@
 from tkinter import Label
 from typing import Optional
-from soyorin.lexer import Tag
-from soyorin.lexer import Text
+from soyorin.lexer import Text, Token
 from soyorin.emoji import EmojiCache
 import tkinter
 from tkinter.font import Font
@@ -39,7 +38,7 @@ class Layout:
         self,
         width: float,
         height: float,
-        tokens: list[Tag | Text],
+        tokens: list[Token],
     ):
         self.width = width
         self.height = height
@@ -102,7 +101,7 @@ class Layout:
 
         return result
 
-    def token(self, tok: Text | Tag):
+    def token(self, tok: Token):
 
         if isinstance(tok, Text):
             for is_emoji, word in self.split_text_and_emojis(tok.text):

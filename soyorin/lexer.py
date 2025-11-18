@@ -1,17 +1,46 @@
-from dataclasses import dataclass
+from __future__ import annotations
+
+type Token = Text | Tag
 
 
-@dataclass
 class Text:
-    text: str
+    def __init__(self, text: str, parent: Tag):
+        self.text = text
+        self.children = []
+        self.parent = parent
 
 
-@dataclass
 class Tag:
-    tag: str
+    def __init__(self, tag: str, parent: Tag):
+        self.tag = tag
+        self.children: list[Token] = []
+        self.parent = parent
 
 
-class Lexer:
+class HTMLParser:
+    def __init__(self, body: str):
+        self.body = body
+        self.unfinished = []
+
+    def prase(self):
+        text = ""
+        in_tag = False
+        for c in self.body:
+            if c == "<":
+                in_tag = True
+                if text:
+                    self.add_text(text)  # 여기서 엔티티 처리하면 되겠다.
+                text = ""
+            elif c == ">":
+                in_tag = False
+                self.add_tag(text)
+                text = ""
+            else:
+                text += c
+        if not in_tag and text:
+            self.add_text(text)
+        return self.finish()
+
     def lex(self, body: str, view_source: bool):
         if view_source:
             out: list[Text | Tag] = [Text(body)]

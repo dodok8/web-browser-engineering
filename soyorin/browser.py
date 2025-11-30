@@ -91,15 +91,16 @@ class Browser:
                 self.canvas.create_image(x, y - self.scroll, image=item[2], anchor="nw")
         if ((self.scroll + self.layout.height) / self.layout.content_height) <= 1:
             # Draw scroll bar
-            self.canvas.create_rectangle(
-                self.layout.width - self.SCROLL_BAR_WIDTH,
-                (self.scroll / self.layout.content_height) * self.layout.height,
-                self.layout.width,
-                ((self.scroll + self.layout.height) / self.layout.content_height)
-                * self.layout.height,
-                fill="blue",
-                width=0,
-            )
+            # self.canvas.create_rectangle(
+            #     self.layout.width - self.SCROLL_BAR_WIDTH,
+            #     (self.scroll / self.layout.content_height) * self.layout.height,
+            #     self.layout.width,
+            #     ((self.scroll + self.layout.height) / self.layout.content_height)
+            #     * self.layout.height,
+            #     fill="blue",
+            #     width=0,
+            # )
+            pass
 
     def load(self, url: URL, use_memory_cache: bool = False):
         if use_memory_cache:

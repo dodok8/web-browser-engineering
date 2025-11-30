@@ -102,6 +102,7 @@ class Layout:
         if isinstance(tree, Text):
             for word in tree.text.split():
                 self.word(word)
+                self.content_height = self.cursor_y
         else:
             self.open_tag(tree.tag)
             for child in tree.children:

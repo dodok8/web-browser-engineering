@@ -31,15 +31,12 @@ class Browser:
 
         self.width = 800
         self.height = 600
-        self.layout = Layout(
-            self.width - Browser.SCROLL_BAR_WIDTH, self.height, tokens=[]
-        )
 
     def __resize(self, e: tkinter.Event):
         self.height = e.height
         self.width = e.width
         self.layout = Layout(
-            self.width - Browser.SCROLL_BAR_WIDTH, self.height, tokens=self.tokens
+            self.width - Browser.SCROLL_BAR_WIDTH, self.height, node=self.nodes
         )
         self.display_list = self.layout.display_list
         self.draw()
@@ -112,9 +109,9 @@ class Browser:
 
         connection = Connection(http_options={"http_version": "1.1"}, cache=cache)
         body = connection.request(url=url)
-        nodes = HTMLParser(body).prase()
-        print_tree(nodes)
+        self.nodes = HTMLParser(body).prase()
+        print_tree(self.nodes)
 
-        self.layout = Layout(self.width, self.height, self.tokens)
+        self.layout = Layout(self.width, self.height, self.nodes)
         self.display_list = self.layout.display_list
         self.draw()

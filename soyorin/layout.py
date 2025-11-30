@@ -4,7 +4,6 @@ from soyorin.lexer import Text, Token
 from soyorin.emoji import EmojiCache
 import tkinter
 from tkinter.font import Font
-from tkinter import PhotoImage
 from typing import Tuple, Literal
 import regex
 
@@ -38,7 +37,7 @@ class Layout:
         self,
         width: float,
         height: float,
-        tokens: list[Token],
+        node: Token,
     ):
         self.width = width
         self.height = height
@@ -47,9 +46,7 @@ class Layout:
         self.content_height = HSTEP
         self.emoji_cache = EmojiCache()
 
-        self.display_list: list[
-            tuple[float, float, PhotoImage] | tuple[float, float, str, Font]
-        ] = []
+        self.display_list: list[tuple[float, float, str, Font]] = []
 
         self.weight: Literal["normal", "bold"] = "normal"
         self.style: Literal["roman", "italic"] = "roman"
@@ -60,104 +57,63 @@ class Layout:
         self.sup_depth = 0
         self.is_pre = False
 
-        for tok in tokens:
-            self.token(tok)
+        self.recurse(node)
         self.flush()
 
-    def split_text_and_emojis(self, text: str):
-
-        emoji_patterns = [
-            r"(?:[\p{Extended_Pictographic}][\U0001F3FB-\U0001F3FF]?[\uFE0E\uFE0F]?)(?:\u200d(?:[\p{Extended_Pictographic}][\U0001F3FB-\U0001F3FF]?[\uFE0E\uFE0F]?))+",
-            r"[\U0001F1E6-\U0001F1FF]{2}",
-            r"[\p{Extended_Pictographic}][\U0001F3FB-\U0001F3FF][\uFE0E\uFE0F]?",
-            r"[\p{Extended_Pictographic}][\uFE0E\uFE0F]?",
-        ]
-
-        # 텍스트 패턴들 (인덱스 4-5)
-        text_patterns = [
-            r"\w+",
-            r"\s+",
-            r"\S",
-        ]
-
-        # 모든 패턴을 그룹으로 만들기
-        all_patterns = []
-        for pattern in emoji_patterns:
-            all_patterns.append(f"({pattern})")
-        for pattern in text_patterns:
-            all_patterns.append(f"({pattern})")
-        combined_pattern = "|".join(all_patterns)
-
-        matches = regex.finditer(combined_pattern, text)
-
-        result: list[Tuple[bool, str]] = []
-        for match in matches:
-            for i, group in enumerate(match.groups(), 1):
-                if group is not None:
-                    token: str = group
-                    is_emoji = i <= len(emoji_patterns)
-
-                    result.append((is_emoji, token))
-
-        return result
-
-    def token(self, tok: Token):
-
-        if isinstance(tok, Text):
-            for is_emoji, word in self.split_text_and_emojis(tok.text):
-                self.word(is_emoji, word)
-            self.content_height = self.cursor_y
-        elif tok.tag == "i":
+    def open_tag(self, tag: str):
+        if tag == "i":
             self.style = "italic"
-        elif tok.tag == "/i":
-            self.style = "roman"
-        elif tok.tag == "b":
+        elif tag == "b":
             self.weight = "bold"
-        elif tok.tag == "/b":
-            self.weight = "normal"
-        elif tok.tag == "small":
+        elif tag == "small":
             self.size -= 2
-        elif tok.tag == "/small":
-            self.size += 2
-        elif tok.tag == "big":
+        elif tag == "big":
             self.size += 4
-        elif tok.tag == "/big":
-            self.size -= 4
-        elif tok.tag == "br":
+        elif tag == "br":
             self.flush()
-        elif tok.tag == "br /":
-            self.flush()
-        elif tok.tag == "/p":
-            self.flush()
-            # self.cursor_y += VSTEP
-        elif tok.tag == "center":
+        elif tag == "center":
             self.flush()
             self.is_center = True
-        elif tok.tag == "/center":
-            self.flush()
-            self.is_center = False
-        elif tok.tag == "sup":
+        elif tag == "sup":
             self.sup_depth += 1
-        elif tok.tag == "/sup":
-            self.sup_depth -= 1
-        elif tok.tag == "pre":
+        elif tag == "pre":
             self.flush()
             self.is_pre = True
-        elif tok.tag == "/pre":
-            self.is_pre = False
 
-    def word(self, is_emoji: bool, word: str):
+    def close_tag(self, tag: str):
+        if tag == "i":
+            self.style = "roman"
+        elif tag == "b":
+            self.weight = "normal"
+        elif tag == "small":
+            self.size += 2
+        elif tag == "big":
+            self.size -= 4
+        elif tag == "center":
+            self.is_center = False
+            self.flush()
+        elif tag == "sup":
+            self.sup_depth -= 1
+        elif tag == "pre":
+            self.is_pre = False
+            self.flush()
+
+    def recurse(self, tree: Token):
+        if isinstance(tree, Text):
+            for word in tree.text.split():
+                self.word(word)
+        else:
+            self.open_tag(tree.tag)
+            for child in tree.children:
+                self.recurse(child)
+            self.close_tag(tree.tag)
+
+    def word(self, word: str):
         if regex.match(r"\s+", word) and not self.is_pre:
             return
         font = get_font(self.size / (2**self.sup_depth), self.weight, self.style)
 
-        if is_emoji:
-            w = font.measure(word[0])
-            emoji_code = "-".join([format(ord(letter), "X") for letter in word])
-            emoji_picture = self.emoji_cache.get(emoji_code)
-            if emoji_picture:
-                self.display_list.append((self.cursor_x, self.cursor_y, emoji_picture))
-        elif self.is_pre:
+        if self.is_pre:
             if "\n" in word:
                 for letter in word:
                     if letter == "\n":

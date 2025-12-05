@@ -175,7 +175,7 @@ def test_empty_quoted_attribute():
 
 def test_single_boolean_attribute():
     """Test empty quoted attribute values."""
-    html = "<script async>let content;</script>"
+    html = "<script async bsync >let content;</script>"
     parser = HTMLParser(html)
     root = parser.parse()
 
@@ -183,7 +183,10 @@ def test_single_boolean_attribute():
 
     assert isinstance(script, Element)
     assert "async" in script.attributes
+    assert "bsync" in script.attributes
+
     assert script.attributes["async"] == ""
+    assert script.attributes["bsync"] == ""
 
     print("✓ Test passed: Empty quoted attribute")
 

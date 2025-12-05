@@ -189,6 +189,8 @@ class HTMLParser:
                 else:
                     if c == " " and not key.endswith("="):
                         attributes[key.casefold()] = ""
+                        key = ""
+                        value = ""
                     elif c == " " and not key:
                         pass
                     else:

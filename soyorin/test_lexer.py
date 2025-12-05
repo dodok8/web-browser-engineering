@@ -173,6 +173,21 @@ def test_empty_quoted_attribute():
     print("✓ Test passed: Empty quoted attribute")
 
 
+def test_single_boolean_attribute():
+    """Test empty quoted attribute values."""
+    html = "<script async>let content;</script>"
+    parser = HTMLParser(html)
+    root = parser.parse()
+
+    script = root.children[0].children[0]  # html > body > script
+
+    assert isinstance(script, Element)
+    assert "async" in script.attributes
+    assert script.attributes["async"] == ""
+
+    print("✓ Test passed: Empty quoted attribute")
+
+
 def test_quote_at_end_of_value():
     """Test attribute value ending with different quote than it started."""
     # This should handle: class="value' - mismatched quotes
@@ -217,6 +232,56 @@ def test_quote_multiple_value():
     print("✓ Test passed: Multiple quoted attributes with spaces")
 
 
+def test_script_tag_with_content_after():
+    """Test that content after script tag is properly parsed."""
+    html = """<script async>
+      let x = 1 < 54;
+    </script>
+    <div>After script</div>"""
+
+    parser = HTMLParser(html)
+    root = parser.parse()
+
+    # Find body
+    body = None
+    for child in root.children:
+        if isinstance(child, Element) and child.tag == "body":
+            body = child
+            break
+
+    assert body is not None, "Could not find body element"
+
+    # Body should have 1 child: div (script is in head because it's a HEAD_TAG)
+    assert (
+        len(body.children) == 1
+    ), f"Expected 1 child in body, got {len(body.children)}"
+
+    # Check the div element in body
+    div = body.children[0]
+    assert isinstance(div, Element)
+    assert div.tag == "div", f"Expected div, got {div.tag}"
+    assert len(div.children) == 1
+    assert isinstance(div.children[0], Text)
+    assert div.children[0].text == "After script"
+
+    # Also verify script is in head
+    head = None
+    for child in root.children:
+        if isinstance(child, Element) and child.tag == "head":
+            head = child
+            break
+
+    assert head is not None, "Could not find head element"
+    assert (
+        len(head.children) == 1
+    ), f"Expected 1 child in head, got {len(head.children)}"
+    script = head.children[0]
+    assert isinstance(script, Element)
+    assert script.tag == "script"
+
+    print("✓ Test passed: Script tag with content after")
+
+
 def run_all_tests():
     """Run all test cases and report results."""
     tests = [
@@ -230,6 +295,8 @@ def run_all_tests():
         test_empty_quoted_attribute,
         test_quote_at_end_of_value,
         test_quote_multiple_value,
+        test_script_tag_with_content_after,
+        test_single_boolean_attribute,
     ]
 
     print("=" * 60)

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Literal
 
 type Token = Text | Element
 
@@ -63,6 +64,7 @@ class HTMLParser:
         text = ""
         in_tag = False
         in_script = False
+        quote_char: Literal["'"] | Literal['"'] | Literal[""] = ""
         idx = 0
 
         while idx < len(self.body):
@@ -83,6 +85,7 @@ class HTMLParser:
                         text = ""
                     in_script = False
                     in_tag = False
+                    self.add_tag("/script")  # Close the script tag
                     idx += 9
                     continue
                 else:
@@ -90,19 +93,25 @@ class HTMLParser:
                     idx += 1
                     continue
 
-            if c == "<":
+            if c == "<" and quote_char == "":
                 in_tag = True
                 if text:
                     self.add_text(text)
                 text = ""
-            elif c == ">":
+            elif c == ">" and quote_char == "":
                 in_tag = False
+                quote_char = ""
                 self.add_tag(text)
                 if text.split()[0] == "script":
                     in_script = True
                 text = ""
             else:
                 text += c
+                if in_tag:
+                    if quote_char == "" and (c == '"' or c == "'"):
+                        quote_char = c
+                    elif quote_char == c:
+                        quote_char = ""
             idx += 1
         if not in_tag and text:
             self.add_text(text)
@@ -157,31 +166,38 @@ class HTMLParser:
 
         key = ""
         value = ""
-        in_quote = False
+        quote_char: Literal["'"] | Literal['"'] | Literal[""] = ""
         idx = 0
         while idx < len(parts):
             c = parts[idx]
-            if c == " " and not in_quote:
-                attributes[key.casefold()] = value
-                idx += 1
+            if quote_char == c:
+                if key:
+                    if key.endswith("="):
+                        key = key.rstrip("=")
+                    attributes[key.casefold()] = value
                 key = ""
                 value = ""
-            elif c == "=":
-                in_quote = True
-                idx += 2
-            elif c == "'" or c == '"':
-                in_quote = False
+                quote_char = ""
+                idx += 1
+            elif quote_char == "" and (c == "'" or c == '"'):
+                # Opening quote - start capturing value (only if not already in quotes)
+                quote_char = c
                 idx += 1
             else:
-                if in_quote:
+                if quote_char != "":
                     value += c
-                    idx += 1
                 else:
-                    key += c
-                    idx += 1
-        if key != "":
+                    if c == " " and not key.endswith("="):
+                        attributes[key.casefold()] = ""
+                    elif c == " " and not key:
+                        pass
+                    else:
+                        key += c
+                idx += 1
+        if key:
+            if key.endswith("="):
+                key = key.rstrip("=")
             attributes[key.casefold()] = value
-        print(attributes)
         return tag, attributes
 
     def implicit_tags(self, tag):

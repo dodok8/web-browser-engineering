@@ -150,17 +150,38 @@ class HTMLParser:
         return self.unfinished.pop()
 
     def get_attributes(self, text: str):
-        parts = text.split()
-        tag = parts[0].casefold()
+        parts_list = text.split(maxsplit=1)
+        tag = parts_list[0].casefold()
+        parts = parts_list[1] if len(parts_list) > 1 else ""
         attributes: dict[str, str] = {}
-        for attrpair in parts[1:]:
-            if "=" in attrpair:
-                key, value = attrpair.split("=", 1)
-                if len(value) > 2 and value[0] in ["'", '"']:
-                    value = value[1:-1]
+
+        key = ""
+        value = ""
+        in_quote = False
+        idx = 0
+        while idx < len(parts):
+            c = parts[idx]
+            if c == " " and not in_quote:
                 attributes[key.casefold()] = value
+                idx += 1
+                key = ""
+                value = ""
+            elif c == "=":
+                in_quote = True
+                idx += 2
+            elif c == "'" or c == '"':
+                in_quote = False
+                idx += 1
             else:
-                attributes[attrpair.casefold()] = ""
+                if in_quote:
+                    value += c
+                    idx += 1
+                else:
+                    key += c
+                    idx += 1
+        if key != "":
+            attributes[key.casefold()] = value
+        print(attributes)
         return tag, attributes
 
     def implicit_tags(self, tag):

@@ -79,6 +79,7 @@ class HTMLParser:
                 in_tag = True
                 if text:
                     self.add_text(text)
+                text = ""
             elif c == ">":
                 in_tag = False
                 self.add_tag(text)

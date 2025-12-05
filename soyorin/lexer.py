@@ -62,6 +62,7 @@ class HTMLParser:
     def parse(self):
         text = ""
         in_tag = False
+        in_script = False
         idx = 0
 
         while idx < len(self.body):
@@ -75,6 +76,20 @@ class HTMLParser:
                     idx = comment_end + 3
                     continue
 
+            if in_script:
+                if self.body[idx : idx + 9] == "</script>":
+                    if text:
+                        self.add_text(text)
+                        text = ""
+                    in_script = False
+                    in_tag = False
+                    idx += 9
+                    continue
+                else:
+                    text += c
+                    idx += 1
+                    continue
+
             if c == "<":
                 in_tag = True
                 if text:
@@ -83,6 +98,8 @@ class HTMLParser:
             elif c == ">":
                 in_tag = False
                 self.add_tag(text)
+                if text.split()[0] == "script":
+                    in_script = True
                 text = ""
             else:
                 text += c

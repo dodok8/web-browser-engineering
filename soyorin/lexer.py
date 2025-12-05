@@ -66,8 +66,7 @@ class HTMLParser:
             if c == "<":
                 in_tag = True
                 if text:
-                    self.add_text(text)  # 여기서 엔티티 처리하면 되겠다.
-                text = ""
+                    self.add_text(text)
             elif c == ">":
                 in_tag = False
                 self.add_tag(text)

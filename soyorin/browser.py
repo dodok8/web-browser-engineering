@@ -83,24 +83,9 @@ class Browser:
                 continue
             if y + VSTEP < self.scroll:
                 continue
-            if len(item) == 4:  # Text with font: (x, y, text, font)
-                self.canvas.create_text(
-                    x, y - self.scroll, text=item[2], anchor="nw", font=item[3]
-                )
-            else:  # Emoji/Image: (x, y, image)
-                self.canvas.create_image(x, y - self.scroll, image=item[2], anchor="nw")
-        if ((self.scroll + self.layout.height) / self.layout.content_height) <= 1:
-            # Draw scroll bar
-            # self.canvas.create_rectangle(
-            #     self.layout.width - self.SCROLL_BAR_WIDTH,
-            #     (self.scroll / self.layout.content_height) * self.layout.height,
-            #     self.layout.width,
-            #     ((self.scroll + self.layout.height) / self.layout.content_height)
-            #     * self.layout.height,
-            #     fill="blue",
-            #     width=0,
-            # )
-            pass
+            self.canvas.create_text(
+                x, y - self.scroll, text=item[2], anchor="nw", font=item[3]
+            )
 
     def load(self, url: URL, use_memory_cache: bool = False):
         if use_memory_cache:

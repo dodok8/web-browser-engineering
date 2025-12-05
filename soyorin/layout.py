@@ -1,7 +1,6 @@
 from tkinter import Label
 from typing import Optional
 from soyorin.lexer import Text, Token
-from soyorin.emoji import EmojiCache
 import tkinter
 from tkinter.font import Font
 from typing import Tuple, Literal
@@ -44,7 +43,6 @@ class Layout:
         self.cursor_x = HSTEP
         self.cursor_y = VSTEP
         self.content_height = HSTEP
-        self.emoji_cache = EmojiCache()
 
         self.display_list: list[tuple[float, float, str, Font]] = []
 

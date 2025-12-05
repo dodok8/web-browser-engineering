@@ -59,7 +59,7 @@ class HTMLParser:
         self.body = body
         self.unfinished: list[Element] = []
 
-    def prase(self):
+    def parse(self):
         text = ""
         in_tag = False
         for c in self.body:

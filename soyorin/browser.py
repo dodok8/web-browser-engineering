@@ -95,7 +95,7 @@ class Browser:
 
         connection = Connection(http_options={"http_version": "1.1"}, cache=cache)
         body = connection.request(url=url)
-        self.nodes = HTMLParser(body).prase()
+        self.nodes = HTMLParser(body).parse()
         print_tree(self.nodes)
 
         self.layout = Layout(self.width, self.height, self.nodes)

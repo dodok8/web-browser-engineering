@@ -18,3 +18,8 @@ project-excludes = [
     "**/*venv/**/*",
     "**/.[!/.]*/**/*",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]

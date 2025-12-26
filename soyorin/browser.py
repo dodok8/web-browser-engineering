@@ -4,7 +4,7 @@ from soyorin.layout import Layout
 from soyorin.connection import Connection
 from soyorin.cache import FileCache, InMemoryCache
 from soyorin.url import URL
-from soyorin.lexer import HTMLParser, print_tree
+from soyorin.lexer import HTMLParser, ViewSourceHTMLParser, print_tree
 import tkinter
 import platform
 
@@ -95,7 +95,12 @@ class Browser:
 
         connection = Connection(http_options={"http_version": "1.1"}, cache=cache)
         body = connection.request(url=url)
-        self.nodes = HTMLParser(body).parse()
+
+        if url.view_source:
+            self.nodes = ViewSourceHTMLParser(body).parse()
+        else:
+            self.nodes = HTMLParser(body).parse()
+
         print_tree(self.nodes)
 
         self.layout = Layout(self.width, self.height, self.nodes)

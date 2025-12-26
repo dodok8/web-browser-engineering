@@ -217,12 +217,94 @@ class HTMLParser:
                 open_tags == ["html", "head"] and tag not in ["/head"] + self.HEAD_TAGS
             ):
                 self.add_tag("/head")
-            elif tag == "p" and len(self.unfinished) > 0 and self.unfinished[-1].tag == "p":
+            elif (
+                tag == "p"
+                and len(self.unfinished) > 0
+                and self.unfinished[-1].tag == "p"
+            ):
                 self.add_tag("/p")
-            elif tag == "li" and len(self.unfinished) > 0 and self.unfinished[-1].tag == "li":
+            elif (
+                tag == "li"
+                and len(self.unfinished) > 0
+                and self.unfinished[-1].tag == "li"
+            ):
                 self.add_tag("/li")
             else:
                 break
+
+
+class ViewSourceHTMLParser(HTMLParser):
+    """
+    A specialized HTML parser for the view-source protocol.
+    It generates syntax-highlighted HTML where tags are in normal font
+    and text content is in bold, wrapped in <pre> tags.
+    """
+
+    def __init__(self, body: str):
+        super().__init__(body)
+
+    def parse(self):
+        highlighted_html = "<pre>"
+        text = ""
+        in_tag = False
+        quote_char: Literal["'"] | Literal['"'] | Literal[""] = ""
+        idx = 0
+
+        while idx < len(self.body):
+            c = self.body[idx]
+
+            if c == "<" and quote_char == "":
+                # Close bold tag if we have open text
+                if text != "":
+                    text = ""
+
+                in_tag = True
+                highlighted_html += "&lt;"
+                idx += 1
+                continue
+            elif c == ">" and quote_char == "" and in_tag:
+                in_tag = False
+                quote_char = ""
+                highlighted_html += "&gt;"
+                idx += 1
+                continue
+
+            if in_tag:
+                if quote_char == "" and (c == '"' or c == "'"):
+                    quote_char = c
+                elif quote_char == c:
+                    quote_char = ""
+                highlighted_html += c
+            else:
+                if c == "<":
+                    highlighted_html += "&lt;"
+                elif c == ">":
+                    highlighted_html += "&gt;"
+                else:
+                    # Start bold tag for non-whitespace text
+                    if text == "" and c not in [" ", "\n", "\t", "\r"]:
+                        text += c
+                        highlighted_html += c
+                    # Close bold tag when we hit whitespace
+                    elif text != "" and c in [" ", "\n", "\t", "\r"]:
+                        highlighted_html += c
+                        text = ""
+                    # Continue with text or whitespace
+                    elif text != "":
+                        text += c
+                        highlighted_html += c
+                    else:
+                        # Just whitespace outside of text
+                        highlighted_html += c
+
+            idx += 1
+
+        if text != "":
+            highlighted_html += "</b>"
+
+        highlighted_html += "</pre>"
+        parser = HTMLParser(highlighted_html)
+        return parser.parse()
 
 
 def print_tree(node: Token, indent=0):

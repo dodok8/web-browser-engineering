@@ -130,7 +130,6 @@ class BlockLayout:
         self.size = 12
         self.line: list[tuple[float, str, Font]] = []
         self.line_sup_depths: list[int] = []
-        self.is_center = False
         self.sup_depth = 0
         self.is_pre = False
 
@@ -145,9 +144,6 @@ class BlockLayout:
             self.size += 4
         elif tag == "br":
             self.flush()
-        elif tag == "center":
-            self.flush()
-            self.is_center = True
         elif tag == "sup":
             self.sup_depth += 1
         elif tag == "pre":
@@ -163,9 +159,6 @@ class BlockLayout:
             self.size += 2
         elif tag == "big":
             self.size -= 4
-        elif tag == "center":
-            self.is_center = False
-            self.flush()
         elif tag == "sup":
             self.sup_depth -= 1
         elif tag == "pre":
@@ -231,24 +224,13 @@ class BlockLayout:
             + (0.25 + sum([1 / 2**idx for idx in range(tot_sup_offset + 1)]))
             * max_ascent
         )
-        if self.is_center:
-            tot_x = sum([font.measure(word) for _, word, font in self.line])
-            x = self.x + (self.width - tot_x) / 2.0
-            for idx, (rel_x, word, font) in enumerate(self.line):
-                if self.line_sup_depths[idx] > 0:
-                    y = self.y + baseline - max_ascent
-                else:
-                    y = self.y + baseline - font.metrics("ascent")
-                self.display_list.append((x, y, word, font))
-                x += font.measure(word + " ")
-        else:
-            for idx, (rel_x, word, font) in enumerate(self.line):
-                x = self.x + rel_x
-                if self.line_sup_depths[idx] > 0:
-                    y = self.y + baseline - max_ascent
-                else:
-                    y = self.y + baseline - font.metrics("ascent")
-                self.display_list.append((x, y, word, font))
+        for idx, (rel_x, word, font) in enumerate(self.line):
+            x = self.x + rel_x
+            if self.line_sup_depths[idx] > 0:
+                y = self.y + baseline - max_ascent
+            else:
+                y = self.y + baseline - font.metrics("ascent")
+            self.display_list.append((x, y, word, font))
 
         max_descent = max([metric["descent"] for metric in metrics])
         self.cursor_y = baseline + 1.25 * max_descent

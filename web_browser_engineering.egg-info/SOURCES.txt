@@ -3,6 +3,7 @@ pyproject.toml
 setup.cfg
 soyorin/browser.py
 soyorin/cache.py
+soyorin/commnad.py
 soyorin/connection.py
 soyorin/const.py
 soyorin/layout.py

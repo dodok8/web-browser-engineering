@@ -1,3 +1,4 @@
+from soyorin.const import VSTEP
 from soyorin.layout import paint_tree
 from soyorin.const import SCROLL_STEP
 from soyorin.const import HEIGHT
@@ -31,47 +32,40 @@ class Browser:
 
     def __scroll_wheel(self, e: tkinter.Event):
         if platform.system() == "Windows":
-            self.scroll -= SCROLL_STEP * (e.delta / 120)
+            delta = SCROLL_STEP * (e.delta / 120)
         elif platform.system() == "Darwin":
-            self.scroll -= SCROLL_STEP * e.delta
+            delta = SCROLL_STEP * e.delta
         elif platform.system() == "Linux":
             if e.num == 4:  # Scroll up
-                self.scroll -= SCROLL_STEP
+                delta = SCROLL_STEP
             elif e.num == 5:  # Scroll down
-                self.scroll += SCROLL_STEP
+                delta = -SCROLL_STEP
+            else:
+                delta = 0
+        else:
+            delta = 0
 
-        if self.scroll < 0:
-            self.scroll = 0
-
-        max_scroll = self.document.height - HEIGHT
-        if self.scroll > max_scroll:
-            self.scroll = max_scroll
-
+        max_y = max(self.document.height + 2 * VSTEP - HEIGHT, 0)
+        self.scroll = min(max(self.scroll - delta, 0), max_y)
         self.draw()
 
     def __scroll_down(self, e):
-        self.scroll += SCROLL_STEP
-        max_scroll = self.document.height - HEIGHT
-        if self.scroll > max_scroll:
-            self.scroll = max_scroll
+        max_y = max(self.document.height + 2 * VSTEP - HEIGHT, 0)
+        self.scroll = min(self.scroll + SCROLL_STEP, max_y)
         self.draw()
 
     def __scroll_up(self, e):
-        self.scroll -= SCROLL_STEP
-        if self.scroll < 0:
-            self.scroll = 0
+        self.scroll = max(self.scroll - SCROLL_STEP, 0)
         self.draw()
 
     def draw(self):
         self.canvas.delete("all")
-        for x, y, word, font in self.display_list:
-            if y > self.scroll + HEIGHT:
+        for cmd in self.display_list:
+            if cmd.top > self.scroll + HEIGHT:
                 continue
-            if y + font.metrics("linespace") < self.scroll:
+            if cmd.bottom < self.scroll:
                 continue
-            self.canvas.create_text(
-                x, y - self.scroll, text=word, font=font, anchor="nw"
-            )
+            cmd.execute(self.scroll, self.canvas)
 
     def load(self, url: URL, use_memory_cache: bool = False):
         if use_memory_cache:

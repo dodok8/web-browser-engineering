@@ -1,4 +1,7 @@
-from __future__ import annotations
+from soyorin.const import VSTEP
+from soyorin.const import HSTEP
+from soyorin.commnad import DrawRect
+from soyorin.commnad import DrawText
 from soyorin.const import WIDTH
 from soyorin.lexer import Element
 from tkinter import Label
@@ -8,9 +11,6 @@ import tkinter
 from tkinter.font import Font
 from typing import Tuple, Literal
 import regex
-
-HSTEP = 13.0
-VSTEP = 18.0
 
 FONTS: dict[
     Tuple[int, Literal["normal", "bold"], Literal["roman", "italic"], Optional[str]],
@@ -309,4 +309,13 @@ class BlockLayout:
             self.height = self.cursor_y
 
     def paint(self):
-        return self.display_list
+        cmds: list[DrawText | DrawRect] = []
+        if isinstance(self.node, Element) and self.node.tag == "pre":
+            x2, y2 = self.x + self.width, self.y + self.height
+            rect = DrawRect(self.x, self.y, x2, y2, "gray")
+            cmds.append(rect)
+        if self.layout_mode() == "inline":
+            for x, y, word, font in self.display_list:
+                cmds.append(DrawText(x, y, word, font))
+
+        return cmds

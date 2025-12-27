@@ -1,24 +1,23 @@
-from soyorin.layout import VSTEP
-from soyorin.lexer import Token
-from soyorin.layout import Layout
+from soyorin.layout import paint_tree
+from soyorin.const import SCROLL_STEP
+from soyorin.const import HEIGHT
+from soyorin.const import WIDTH
+from soyorin.layout import DocumentLayout
 from soyorin.connection import Connection
 from soyorin.cache import FileCache, InMemoryCache
 from soyorin.url import URL
-from soyorin.lexer import HTMLParser, ViewSourceHTMLParser, print_tree
+from soyorin.lexer import HTMLParser, ViewSourceHTMLParser
 import tkinter
 import platform
 
 
 class Browser:
-    SCROLL_BAR_WIDTH = 10
-    SCROLL_STEP = 18
 
     def __init__(self):
         self.window = tkinter.Tk()
-        self.canvas = tkinter.Canvas(self.window, width=800, height=600)
+        self.canvas = tkinter.Canvas(self.window, width=WIDTH, height=HEIGHT)
         self.canvas.pack(fill=tkinter.BOTH, expand=True)
-
-        self.tokens: list[Token] = []
+        self.display_list = []
 
         self.scroll = 0.0
         self.window.bind("<Down>", self.__scroll_down)
@@ -27,64 +26,51 @@ class Browser:
         self.window.bind("<Button-4>", self.__scroll_wheel)
         self.window.bind("<Button-5>", self.__scroll_wheel)
 
-        self.window.bind("<Configure>", self.__resize)
-
         self.width = 800
         self.height = 600
 
-    def __resize(self, e: tkinter.Event):
-        self.height = e.height
-        self.width = e.width
-        self.layout = Layout(
-            self.width - Browser.SCROLL_BAR_WIDTH, self.height, node=self.nodes
-        )
-        self.display_list = self.layout.display_list
-        self.draw()
-
     def __scroll_wheel(self, e: tkinter.Event):
         if platform.system() == "Windows":
-            self.scroll -= Browser.SCROLL_STEP * (e.delta / 120)
+            self.scroll -= SCROLL_STEP * (e.delta / 120)
         elif platform.system() == "Darwin":
-            self.scroll -= Browser.SCROLL_STEP * e.delta
+            self.scroll -= SCROLL_STEP * e.delta
         elif platform.system() == "Linux":
             if e.num == 4:  # Scroll up
-                self.scroll -= Browser.SCROLL_STEP
+                self.scroll -= SCROLL_STEP
             elif e.num == 5:  # Scroll down
-                self.scroll += Browser.SCROLL_STEP
+                self.scroll += SCROLL_STEP
 
         if self.scroll < 0:
             self.scroll = 0
 
-        max_scroll = max(0.0, self.layout.content_height - self.layout.height)
+        max_scroll = self.document.height - HEIGHT
         if self.scroll > max_scroll:
             self.scroll = max_scroll
 
         self.draw()
 
     def __scroll_down(self, e):
-        self.scroll += Browser.SCROLL_STEP
-        max_scroll = max(0.0, self.layout.content_height - self.layout.height)
+        self.scroll += SCROLL_STEP
+        max_scroll = self.document.height - HEIGHT
         if self.scroll > max_scroll:
             self.scroll = max_scroll
         self.draw()
 
     def __scroll_up(self, e):
-        self.scroll -= Browser.SCROLL_STEP
+        self.scroll -= SCROLL_STEP
         if self.scroll < 0:
             self.scroll = 0
         self.draw()
 
     def draw(self):
         self.canvas.delete("all")
-        for item in self.display_list:
-            x = item[0]
-            y = item[1]
-            if y > self.scroll + self.layout.height:
+        for x, y, word, font in self.display_list:
+            if y > self.scroll + HEIGHT:
                 continue
-            if y + VSTEP < self.scroll:
+            if y + font.metrics("linespace") < self.scroll:
                 continue
             self.canvas.create_text(
-                x, y - self.scroll, text=item[2], anchor="nw", font=item[3]
+                x, y - self.scroll, text=word, font=font, anchor="nw"
             )
 
     def load(self, url: URL, use_memory_cache: bool = False):
@@ -101,8 +87,7 @@ class Browser:
         else:
             self.nodes = HTMLParser(body).parse()
 
-        print_tree(self.nodes)
-
-        self.layout = Layout(self.width, self.height, self.nodes)
-        self.display_list = self.layout.display_list
+        self.document = DocumentLayout(self.nodes)
+        self.document.layout()
+        paint_tree(self.document, self.display_list)
         self.draw()

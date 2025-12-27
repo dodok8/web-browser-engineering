@@ -287,6 +287,8 @@ class BlockLayout:
             previous = None
             for child in self.node.children:
                 next = BlockLayout(child, self, previous)
+                if isinstance(child, Element) and child.tag == "head":
+                    continue
                 self.children.append(next)
                 previous = next
         else:

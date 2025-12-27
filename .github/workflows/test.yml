@@ -25,4 +25,4 @@ jobs:
         run: uv sync
 
       - name: Run Lexer tests
-        run: uv run pytest soyorin/ -v
+        run: uv run pytest test/ -v

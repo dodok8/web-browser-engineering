@@ -1,4 +1,6 @@
-from lexer import HTMLParser, Element, Text
+from soyorin.lexer import HTMLParser
+from soyorin.lexer import Text
+from soyorin.lexer import Element
 
 """
 4-2

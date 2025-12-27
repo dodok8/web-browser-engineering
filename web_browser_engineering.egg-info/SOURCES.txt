@@ -1,0 +1,15 @@
+README.md
+pyproject.toml
+setup.cfg
+soyorin/browser.py
+soyorin/cache.py
+soyorin/connection.py
+soyorin/const.py
+soyorin/layout.py
+soyorin/lexer.py
+soyorin/url.py
+web_browser_engineering.egg-info/PKG-INFO
+web_browser_engineering.egg-info/SOURCES.txt
+web_browser_engineering.egg-info/dependency_links.txt
+web_browser_engineering.egg-info/requires.txt
+web_browser_engineering.egg-info/top_level.txt

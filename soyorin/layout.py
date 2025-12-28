@@ -259,6 +259,11 @@ class BlockLayout:
         self.x = self.parent.x
         self.width = self.parent.width
 
+        # Add indentation for <li> elements
+        if isinstance(self.node, Element) and self.node.tag == "li":
+            self.x += 2 * HSTEP
+            self.width -= 2 * HSTEP
+
         if self.previous:
             self.y = self.previous.y + self.previous.height
         else:
@@ -298,6 +303,34 @@ class BlockLayout:
             x2, y2 = self.x + self.width, self.y + self.height
             rect = DrawRect(self.x, self.y, x2, y2, "gray")
             cmds.append(rect)
+
+        # Draw bullet for <li> elements
+        if isinstance(self.node, Element) and self.node.tag == "li":
+            bullet_size = 4
+            bullet_x = self.x - HSTEP - bullet_size / 2
+
+            # Find the first display list (either in self or first child)
+            if self.display_list:
+                first_font = self.display_list[0][3]
+                first_y = self.display_list[0][1]
+                bullet_y = first_y + first_font.metrics("ascent") / 2 - bullet_size / 2
+            elif self.children and self.children[0].display_list:
+                first_font = self.children[0].display_list[0][3]
+                first_y = self.children[0].display_list[0][1]
+                bullet_y = first_y + first_font.metrics("ascent") / 2 - bullet_size / 2
+            else:
+                # Fallback if no text yet
+                bullet_y = self.y + VSTEP / 2
+
+            bullet_rect = DrawRect(
+                bullet_x,
+                bullet_y,
+                bullet_x + bullet_size,
+                bullet_y + bullet_size,
+                "black",
+            )
+            cmds.append(bullet_rect)
+
         if self.layout_mode() == "inline":
             for x, y, word, font in self.display_list:
                 cmds.append(DrawText(x, y, word, font))

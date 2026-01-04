@@ -1,0 +1,18 @@
+[tools]
+python = "3.12"
+uv = "latest"
+
+[env]
+_.python.venv = { path = ".venv", create = true }
+
+[tasks.test]
+description = "Run pytest tests"
+run = "uv run pytest -v"
+
+[tasks.run]
+description = "Run the browser with a URI"
+run = "uv run main.py"
+
+[tasks.install]
+description = "Install dependencies with uv"
+run = "uv sync"

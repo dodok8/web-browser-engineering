@@ -9,6 +9,8 @@ soyorin/const.py
 soyorin/layout.py
 soyorin/lexer.py
 soyorin/url.py
+test/test_layout.py
+test/test_lexer.py
 web_browser_engineering.egg-info/PKG-INFO
 web_browser_engineering.egg-info/SOURCES.txt
 web_browser_engineering.egg-info/dependency_links.txt

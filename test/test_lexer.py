@@ -4,6 +4,8 @@ from soyorin.lexer import Element
 
 """
 4-2
+
+HTML 스펙 : https://html.spec.whatwg.org/multipage/syntax.html#optional-tags
 """
 
 
@@ -780,3 +782,6 @@ def test_script_tag_with_content_after():
     script = head.children[0]
     assert isinstance(script, Element)
     assert script.tag == "script"
+
+
+# https://html.spec.whatwg.org/multipage/parsing.html#adoption-agency-algorithm

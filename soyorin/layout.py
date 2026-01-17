@@ -299,9 +299,11 @@ class BlockLayout:
 
     def paint(self):
         cmds: list[DrawText | DrawRect] = []
-        if isinstance(self.node, Element) and self.node.tag == "pre":
+
+        bgcolor = self.node.style.get("background-color", "transparent")
+        if bgcolor != "transparent":
             x2, y2 = self.x + self.width, self.y + self.height
-            rect = DrawRect(self.x, self.y, x2, y2, "gray")
+            rect = DrawRect(self.x, self.y, x2, y2, bgcolor)
             cmds.append(rect)
 
         # Draw bullet for <li> elements

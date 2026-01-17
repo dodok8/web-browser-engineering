@@ -26,6 +26,7 @@ class Text:
         self.text = text
         self.children = []
         self.parent = parent
+        self.style: dict[str, str] = {}
 
     def __repr__(self):
         return repr(self.text)
@@ -38,6 +39,7 @@ class Element:
         self.attributes = attributes
         self.children: list[Token] = []
         self.parent = parent
+        self.style: dict[str, str] = {}
 
     def __repr__(self):
         return f"<{self.tag}>"

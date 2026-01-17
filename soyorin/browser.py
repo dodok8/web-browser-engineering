@@ -1,3 +1,4 @@
+from soyorin.style import style
 from soyorin.const import VSTEP
 from soyorin.layout import paint_tree
 from soyorin.const import SCROLL_STEP
@@ -81,6 +82,7 @@ class Browser:
         else:
             self.nodes = HTMLParser(body).parse()
 
+        style(self.nodes)
         self.document = DocumentLayout(self.nodes)
         self.document.layout()
         paint_tree(self.document, self.display_list)

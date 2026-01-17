@@ -36,7 +36,7 @@ class CSSParser:
 
     def body(self):
         pairs = {}
-        while self.i < len(self.s):
+        while self.i < len(self.s) and self.s[self.i] != "}":
             try:
                 prop, val = self.pair()
                 pairs[prop.casefold()] = val
@@ -91,14 +91,19 @@ class CSSParser:
         return rules
 
 
-def style(node):
+def style(node, rules):
     node.style = {}
     if isinstance(node, Element) and "style" in node.attributes:
         pairs = CSSParser(node.attributes["style"]).body()
         for property, value in pairs.items():
             node.style[property] = value
+    for selector, body in rules:
+        if not selector.matches(node):
+            continue
+        for property, value in body.items():
+            node.style[property] = value
     for child in node.children:
-        style(child)
+        style(child, rules)
 
 
 class TagSelector:

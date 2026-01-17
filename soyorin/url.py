@@ -183,3 +183,37 @@ class URL:
             )
         else:
             return FileUrlInfo(host=hostname_value or "localhost", path=path_value)
+
+    def resolve(self, url: str) -> "URL":
+        if "://" in url:
+            return URL(url)
+        if url.startswith("//"):
+            if isinstance(self.url_info, HttpUrlInfo):
+                return URL(self.url_info.scheme + ":" + url)
+            raise ValueError("Cannot resolve scheme-relative URL for non-HTTP URL")
+        if not isinstance(self.url_info, HttpUrlInfo):
+            raise ValueError("Cannot resolve relative URL for non-HTTP URL")
+
+        path = self.url_info.path or "/"
+        if url.startswith("/"):
+            new_path = url
+        else:
+            dir, _ = path.rsplit("/", 1)
+            while url.startswith("../"):
+                _, url = url.split("/", 1)
+                if "/" in dir:
+                    dir, _ = dir.rsplit("/", 1)
+            new_path = dir + "/" + url
+
+        new_url = f"{self.url_info.scheme}://"
+        if self.url_info.username:
+            new_url += self.url_info.username
+            if self.url_info.password:
+                new_url += ":" + self.url_info.password
+            new_url += "@"
+        new_url += self.url_info.host or ""
+        if (self.url_info.scheme == "http" and self.url_info.port != 80) or \
+           (self.url_info.scheme == "https" and self.url_info.port != 443):
+            new_url += ":" + str(self.url_info.port)
+        new_url += new_path
+        return URL(new_url)

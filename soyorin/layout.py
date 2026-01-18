@@ -62,7 +62,7 @@ def get_font(
     size: int,
     weight: Literal["normal", "bold"],
     style: Literal["roman", "italic"],
-    family="Times New Roman",
+    family="D2Coding",
 ):
     size = int(size)  # Ensure size is always an integer
     key = (size, weight, style, family)
@@ -123,92 +123,32 @@ class BlockLayout:
         self.y = 0.0
         self.display_list = []
 
-        self.display_list: list[tuple[float, float, str, Font]] = []
+        self.display_list: list[tuple[float, float, str, Font, str]] = []
 
-        self.weight: Literal["normal", "bold"] = "normal"
-        self.style: Literal["roman", "italic"] = "roman"
-        self.size = 12
-        self.line: list[tuple[float, str, Font]] = []
-        self.line_sup_depths: list[int] = []
-        self.sup_depth = 0
-        self.is_pre = False
+        self.line: list[tuple[float, str, Font, str]] = []
 
-    def open_tag(self, tag: str):
-        if tag == "i":
-            self.style = "italic"
-        elif tag == "b":
-            self.weight = "bold"
-        elif tag == "small":
-            self.size -= 2
-        elif tag == "big":
-            self.size += 4
-        elif tag == "br":
-            self.flush()
-        elif tag == "sup":
-            self.sup_depth += 1
-        elif tag == "pre":
-            self.flush()
-            self.is_pre = True
-
-    def close_tag(self, tag: str):
-        if tag == "i":
-            self.style = "roman"
-        elif tag == "b":
-            self.weight = "normal"
-        elif tag == "small":
-            self.size += 2
-        elif tag == "big":
-            self.size -= 4
-        elif tag == "sup":
-            self.sup_depth -= 1
-        elif tag == "pre":
-            self.is_pre = False
-            self.flush()
-
-    def recurse(self, tree: Token):
-        if isinstance(tree, Text):
-            for word in tree.text.split():
-                self.word(word)
-                self.content_height = self.cursor_y
+    def recurse(self, node: Token):
+        if isinstance(node, Text):
+            for word in node.text.split():
+                self.word(node, word)
         else:
-            self.open_tag(tree.tag)
-            for child in tree.children:
+            if node.tag == "br":
+                self.flush()
+            for child in node.children:
                 self.recurse(child)
-            self.close_tag(tree.tag)
 
-    def word(self, word: str):
-        if regex.match(r"\s+", word) and not self.is_pre:
-            return
-        font = get_font(self.size / (2**self.sup_depth), self.weight, self.style)
-
-        if self.is_pre:
-            if "\n" in word:
-                for letter in word:
-                    if letter == "\n":
-                        if len(self.line) == 0:
-                            self.cursor_y += VSTEP
-                        else:
-                            self.flush()
-                return
-            font = get_font(
-                self.size / (2**self.sup_depth),
-                self.weight,
-                self.style,
-                "Courier New",
-            )
-            w = font.measure(word)
-            self.line.append(
-                (
-                    self.cursor_x,
-                    word,
-                    font,
-                )
-            )
-            self.line_sup_depths.append(self.sup_depth)
-        else:
-            w = font.measure(word)
-            self.line.append((self.cursor_x, word, font))
-            self.line_sup_depths.append(self.sup_depth)
+    def word(self, node: Text, word: str):
+        color = node.style["color"]
+        weight = node.style["font-weight"]
+        style = node.style["font-style"]
+        if style == "normal":
+            style = "roman"
+        size = int(float(node.style["font-size"][:-2]) * 0.75)
+        assert weight in ("normal", "bold")
+        assert style in ("roman", "italic")
+        font = get_font(size, weight, style)
+        w = font.measure(word)
+        self.line.append((self.cursor_x, word, font, color))
         self.cursor_x += w + font.measure(" ")
         if self.cursor_x + w >= self.width:
             self.flush()
@@ -216,28 +156,19 @@ class BlockLayout:
     def flush(self):
         if not self.line:
             return
-        metrics = [font.metrics() for x, word, font in self.line]
+        metrics = [font.metrics() for x, word, font, color in self.line]
         max_ascent = max([metric["ascent"] for metric in metrics])
-        tot_sup_offset = max(self.line_sup_depths)
-        baseline = (
-            self.cursor_y
-            + (0.25 + sum([1 / 2**idx for idx in range(tot_sup_offset + 1)]))
-            * max_ascent
-        )
-        for idx, (rel_x, word, font) in enumerate(self.line):
+        baseline = self.cursor_y + 1.25 * max_ascent
+        for rel_x, word, font, color in self.line:
             x = self.x + rel_x
-            if self.line_sup_depths[idx] > 0:
-                y = self.y + baseline - max_ascent
-            else:
-                y = self.y + baseline - font.metrics("ascent")
-            self.display_list.append((x, y, word, font))
+            y = self.y + baseline - font.metrics("ascent")
+            self.display_list.append((x, y, word, font, color))
 
         max_descent = max([metric["descent"] for metric in metrics])
         self.cursor_y = baseline + 1.25 * max_descent
 
         self.cursor_x = 0
         self.line = []
-        self.line_sup_depths = []
 
     def layout_mode(self):
         if isinstance(self.node, Text):
@@ -281,10 +212,6 @@ class BlockLayout:
         else:
             self.cursor_x = 0
             self.cursor_y = 0
-            self.weight = "normal"
-            self.style = "roman"
-            self.size = 12
-
             self.line = []
             self.recurse(self.node)
             self.flush()
@@ -334,7 +261,7 @@ class BlockLayout:
             cmds.append(bullet_rect)
 
         if self.layout_mode() == "inline":
-            for x, y, word, font in self.display_list:
-                cmds.append(DrawText(x, y, word, font))
+            for x, y, word, font, color in self.display_list:
+                cmds.append(DrawText(x, y, word, font, color))
 
         return cmds

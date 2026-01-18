@@ -1,7 +1,18 @@
 pre {
   background-color: gray;
 }
-
-body {
-  background-color: white;
+a {
+  color: blue;
+}
+i {
+  font-style: italic;
+}
+b {
+  font-weight: bold;
+}
+small {
+  font-size: 90%;
+}
+big {
+  font-size: 110%;
 }

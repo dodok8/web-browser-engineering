@@ -23,7 +23,9 @@ class Browser:
 
     def __init__(self):
         self.window = tkinter.Tk()
-        self.canvas = tkinter.Canvas(self.window, width=WIDTH, height=HEIGHT)
+        self.canvas = tkinter.Canvas(
+            self.window, width=WIDTH, height=HEIGHT, bg="white"
+        )
         self.canvas.pack(fill=tkinter.BOTH, expand=True)
         self.display_list = []
 

@@ -1,3 +1,4 @@
+from soyorin.style import cascade_priority
 from soyorin.lexer import Element
 from soyorin.tree import tree_to_list
 from soyorin.style import CSSParser
@@ -101,11 +102,12 @@ class Browser:
         for link in links:
             style_url = url.resolve(link)
             try:
-                body = style_url.request()
+                body = connection.request(url=style_url)
             except Exception:
                 continue
             rules.extend(CSSParser(body).parse())
-        style(self.nodes, rules)
+
+        style(self.nodes, sorted(rules, key=cascade_priority))
         self.document = DocumentLayout(self.nodes)
         self.document.layout()
         paint_tree(self.document, self.display_list)

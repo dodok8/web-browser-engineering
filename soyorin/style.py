@@ -1,16 +1,19 @@
-from soyorin.lexer import Element
+from soyorin.lexer import Element, Token
+
+type Selector = TagSelector | DescendantSelector
+type Rule = tuple[Selector, dict[str, str]]
 
 
 class CSSParser:
-    def __init__(self, s):
+    def __init__(self, s: str) -> None:
         self.s = s
         self.i = 0
 
-    def whitespace(self):
+    def whitespace(self) -> None:
         while self.i < len(self.s) and self.s[self.i].isspace():
             self.i += 1
 
-    def word(self):
+    def word(self) -> str:
         start = self.i
         while self.i < len(self.s):
             if self.s[self.i].isalnum() or self.s[self.i] in "#-.%":
@@ -21,12 +24,12 @@ class CSSParser:
             raise Exception("Parsing Error")
         return self.s[start : self.i]
 
-    def literal(self, literal):
+    def literal(self, literal: str) -> None:
         if not (self.i < len(self.s) and self.s[self.i] == literal):
             raise Exception("Parsing Error")
         self.i += 1
 
-    def pair(self):
+    def pair(self) -> tuple[str, str]:
         prop = self.word()
         self.whitespace()
         self.literal(":")
@@ -34,8 +37,8 @@ class CSSParser:
         val = self.word()
         return prop.casefold(), val
 
-    def body(self):
-        pairs = {}
+    def body(self) -> dict[str, str]:
+        pairs: dict[str, str] = {}
         while self.i < len(self.s) and self.s[self.i] != "}":
             try:
                 prop, val = self.pair()
@@ -52,7 +55,7 @@ class CSSParser:
                     break
         return pairs
 
-    def ignore_until(self, chars):
+    def ignore_until(self, chars: list[str]) -> str | None:
         while self.i < len(self.s):
             if self.s[self.i] in chars:
                 return self.s[self.i]
@@ -60,8 +63,8 @@ class CSSParser:
                 self.i += 1
         return None
 
-    def selector(self):
-        out = TagSelector(self.word().casefold())
+    def selector(self) -> Selector:
+        out: Selector = TagSelector(self.word().casefold())
         self.whitespace()
         while self.i < len(self.s) and self.s[self.i] != "{":
             tag = self.word()
@@ -70,8 +73,8 @@ class CSSParser:
             self.whitespace()
         return out
 
-    def parse(self):
-        rules = []
+    def parse(self) -> list[Rule]:
+        rules: list[Rule] = []
         while self.i < len(self.s):
             try:
                 self.whitespace()
@@ -91,7 +94,7 @@ class CSSParser:
         return rules
 
 
-def style(node, rules):
+def style(node: Token, rules: list[Rule]) -> None:
     node.style = {}
     if isinstance(node, Element) and "style" in node.attributes:
         pairs = CSSParser(node.attributes["style"]).body()
@@ -107,20 +110,24 @@ def style(node, rules):
 
 
 class TagSelector:
-    def __init__(self, tag):
+    def __init__(self, tag: str) -> None:
         self.tag = tag
         self.priority = 1
 
-    def matches(self, node):
+    def matches(self, node: Token) -> bool:
         return isinstance(node, Element) and self.tag == node.tag
 
 
 class DescendantSelector:
-    def __init__(self, ancestor, descendant):
+    def __init__(self, ancestor: Selector, descendant: TagSelector) -> None:
         self.ancestor = ancestor
         self.descendant = descendant
 
-    def matches(self, node):
+    @property
+    def priority(self) -> int:
+        return self.ancestor.priority + self.descendant.priority
+
+    def matches(self, node: Token) -> bool:
         if not self.descendant.matches(node):
             return False
         while node.parent:
@@ -131,6 +138,6 @@ class DescendantSelector:
         return False
 
 
-def cascade_priority(rule):
+def cascade_priority(rule: Rule) -> int:
     selector, body = rule
     return selector.priority

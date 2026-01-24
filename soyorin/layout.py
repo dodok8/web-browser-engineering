@@ -10,52 +10,11 @@ from soyorin.lexer import Text, Token
 import tkinter
 from tkinter.font import Font
 from typing import Tuple, Literal
-import regex
 
 FONTS: dict[
     Tuple[int, Literal["normal", "bold"], Literal["roman", "italic"], Optional[str]],
     Tuple[Font, Label],
 ] = {}
-
-BLOCK_ELEMENTS = [
-    "html",
-    "body",
-    "article",
-    "section",
-    "nav",
-    "aside",
-    "h1",
-    "h2",
-    "h3",
-    "h4",
-    "h5",
-    "h6",
-    "hgroup",
-    "header",
-    "footer",
-    "address",
-    "p",
-    "hr",
-    "pre",
-    "blockquote",
-    "ol",
-    "ul",
-    "menu",
-    "li",
-    "dl",
-    "dt",
-    "dd",
-    "figure",
-    "figcaption",
-    "main",
-    "div",
-    "table",
-    "form",
-    "fieldset",
-    "legend",
-    "details",
-    "summary",
-]
 
 
 def get_font(
@@ -175,7 +134,8 @@ class BlockLayout:
             return "inline"
         elif any(
             [
-                isinstance(child, Element) and child.tag in BLOCK_ELEMENTS
+                isinstance(child, Element)
+                and child.style.get("display", "inline") == "block"
                 for child in self.node.children
             ]
         ):

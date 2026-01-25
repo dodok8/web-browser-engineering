@@ -72,14 +72,17 @@ class CSSParser:
         return None
 
     def selector(self) -> Selector:
-        out: Selector = TagSelector(self.word().casefold())
+        selectors: list[TagSelector] = [TagSelector(self.word().casefold())]
         self.whitespace()
         while self.i < len(self.s) and self.s[self.i] != "{":
             tag = self.word()
-            descendant = TagSelector(tag.casefold())
-            out = DescendantSelector(out, descendant)
+            selectors.append(TagSelector(tag.casefold()))
             self.whitespace()
-        return out
+
+        if len(selectors) == 1:
+            return selectors[0]
+        else:
+            return DescendantSelector(selectors)
 
     def parse(self) -> list[Rule]:
         rules: list[Rule] = []
@@ -141,23 +144,24 @@ class TagSelector:
 
 
 class DescendantSelector:
-    def __init__(self, ancestor: Selector, descendant: TagSelector) -> None:
-        self.ancestor = ancestor
-        self.descendant = descendant
+    def __init__(self, selectors: list[TagSelector]) -> None:
+        self.selectors = selectors
 
     @property
     def priority(self) -> int:
-        return self.ancestor.priority + self.descendant.priority
+        return sum(selector.priority for selector in self.selectors)
 
     def matches(self, node: Token) -> bool:
-        if not self.descendant.matches(node):
+        if not self.selectors[-1].matches(node):
             return False
-        while node.parent:
-            if self.ancestor.matches(node.parent):
-                return True
-            node = node.parent
 
-        return False
+        selector_idx = len(self.selectors) - 2
+        while node.parent and selector_idx >= 0:
+            node = node.parent
+            if self.selectors[selector_idx].matches(node):
+                selector_idx -= 1
+
+        return selector_idx < 0
 
 
 def cascade_priority(rule: Rule) -> int:

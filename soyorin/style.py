@@ -8,7 +8,6 @@ INHERITED_PROPERTIES = {
     "font-style": "normal",
     "font-weight": "normal",
     "color": "black",
-    "display": "inline",
 }
 
 

@@ -1,3 +1,4 @@
+from __future__ import annotations
 from soyorin.const import VSTEP
 from soyorin.const import HSTEP
 from soyorin.commnad import DrawRect
@@ -69,22 +70,15 @@ class BlockLayout:
         self.node = node
         self.parent = parent
         self.previous = previous
-        self.children: list[BlockLayout] = []
+        self.children: list[BlockLayout | LineLayout] = []
 
-        self.cursor_x = HSTEP
-        self.cursor_y = VSTEP
-        self.content_height = HSTEP
+        self.cursor_x = 0.0
 
         self.width = 0.0
         self.height = 0.0
 
         self.x = 0.0
         self.y = 0.0
-        self.display_list = []
-
-        self.display_list: list[tuple[float, float, str, Font, str]] = []
-
-        self.line: list[tuple[float, str, Font, str]] = []
 
     def recurse(self, node: Token):
         if isinstance(node, Text):
@@ -92,12 +86,12 @@ class BlockLayout:
                 self.word(node, word)
         else:
             if node.tag == "br":
-                self.flush()
+                self.new_line()
             for child in node.children:
                 self.recurse(child)
 
     def word(self, node: Text, word: str):
-        color = node.style["color"]
+        # Get font to calculate width for line breaking
         weight = node.style["font-weight"]
         style = node.style["font-style"]
         if style == "normal":
@@ -107,27 +101,25 @@ class BlockLayout:
         assert style in ("roman", "italic")
         font = get_font(size, weight, style)
         w = font.measure(word)
-        self.line.append((self.cursor_x, word, font, color))
+
+        # Check if we need a new line
+        if self.cursor_x + w > self.width:
+            self.new_line()
+
+        # Add word to current line
+        line = self.children[-1]
+        previous_word = line.children[-1] if line.children else None
+        text = TextLayout(node, word, line, previous_word)
+        line.children.append(text)
+
         self.cursor_x += w + font.measure(" ")
-        if self.cursor_x + w >= self.width:
-            self.flush()
 
-    def flush(self):
-        if not self.line:
-            return
-        metrics = [font.metrics() for x, word, font, color in self.line]
-        max_ascent = max([metric["ascent"] for metric in metrics])
-        baseline = self.cursor_y + 1.25 * max_ascent
-        for rel_x, word, font, color in self.line:
-            x = self.x + rel_x
-            y = self.y + baseline - font.metrics("ascent")
-            self.display_list.append((x, y, word, font, color))
-
-        max_descent = max([metric["descent"] for metric in metrics])
-        self.cursor_y = baseline + 1.25 * max_descent
-
+    def new_line(self):
         self.cursor_x = 0
-        self.line = []
+        last_line = self.children[-1] if self.children else None
+        new_line = LineLayout(self.node, self, last_line)
+        self.children.append(new_line)
+
 
     def layout_mode(self):
         if isinstance(self.node, Text):
@@ -170,19 +162,13 @@ class BlockLayout:
                 self.children.append(next)
                 previous = next
         else:
-            self.cursor_x = 0
-            self.cursor_y = 0
-            self.line = []
+            self.new_line()
             self.recurse(self.node)
-            self.flush()
 
         for child in self.children:
             child.layout()
 
-        if mode == "block":
-            self.height = sum([child.height for child in self.children])
-        else:
-            self.height = self.cursor_y
+        self.height = sum([child.height for child in self.children])
 
     def paint(self):
         cmds: list[DrawText | DrawRect] = []
@@ -197,19 +183,7 @@ class BlockLayout:
         if isinstance(self.node, Element) and self.node.tag == "li":
             bullet_size = 4
             bullet_x = self.x - HSTEP - bullet_size / 2
-
-            # Find the first display list (either in self or first child)
-            if self.display_list:
-                first_font = self.display_list[0][3]
-                first_y = self.display_list[0][1]
-                bullet_y = first_y + first_font.metrics("ascent") / 2 - bullet_size / 2
-            elif self.children and self.children[0].display_list:
-                first_font = self.children[0].display_list[0][3]
-                first_y = self.children[0].display_list[0][1]
-                bullet_y = first_y + first_font.metrics("ascent") / 2 - bullet_size / 2
-            else:
-                # Fallback if no text yet
-                bullet_y = self.y + VSTEP / 2
+            bullet_y = self.y + VSTEP / 2
 
             bullet_rect = DrawRect(
                 bullet_x,
@@ -220,8 +194,73 @@ class BlockLayout:
             )
             cmds.append(bullet_rect)
 
-        if self.layout_mode() == "inline":
-            for x, y, word, font, color in self.display_list:
-                cmds.append(DrawText(x, y, word, font, color))
-
         return cmds
+
+
+class LineLayout:
+    def __init__(self, node, parent, previous):
+        self.node = node
+        self.parent = parent
+        self.previous = previous
+        self.children: list[TextLayout] = []
+
+    def layout(self):
+        self.width = self.parent.width
+        self.x = self.parent.x
+
+        if self.previous:
+            self.y = self.previous.y + self.previous.height
+        else:
+            self.y = self.parent.y
+
+        if not self.children:
+            self.height = 0
+            return
+
+        for word in self.children:
+            word.layout()
+        max_ascent = max([word.font.metrics("ascent") for word in self.children])
+        baseline = self.y + 1.25 * max_ascent
+        for word in self.children:
+            word.y = baseline - word.font.metrics("ascent")
+        max_descent = max([word.font.metrics("descent") for word in self.children])
+        self.height = 1.25 * (max_ascent + max_descent)
+
+    def paint(self):
+        return []
+
+
+class TextLayout:
+    def __init__(self, node, word, parent, previous):
+        self.node = node
+        self.word = word
+        self.children = []
+        self.parent = parent
+        self.previous = previous
+        self.x = 0.0
+        self.y = 0.0
+        self.width = 0.0
+        self.height = 0.0
+        self.font = None
+
+    def layout(self):
+        weight = self.node.style["font-weight"]
+        style = self.node.style["font-style"]
+        if style == "normal":
+            style = "roman"
+        size = int(float(self.node.style["font-size"][:-2]) * 0.75)
+        self.font = get_font(size, weight, style)
+
+        self.width = self.font.measure(self.word)
+
+        if self.previous:
+            space = self.previous.font.measure(" ")
+            self.x = self.previous.x + space + self.previous.width
+        else:
+            self.x = self.parent.x
+
+        self.height = self.font.metrics("linespace")
+
+    def paint(self):
+        color = self.node.style["color"]
+        return [DrawText(self.x, self.y, self.word, self.font, color)]

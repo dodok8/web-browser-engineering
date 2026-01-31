@@ -92,34 +92,35 @@ class Connection:
         if http_options["http_version"] not in ["1.0", "1.1"]:
             raise ValueError("Unsupported HTTP version")
 
-        if http_options["http_version"] == "1.1":
-            key = ConnectionPoolCacheKey(host=url_info.host or "", port=url_info.port)
-            if key in Connection.connection_pool:
-                self.socket = Connection.connection_pool[key]
-
         response_headers = {}
 
         while True:
             if redirect_count < 0:
                 raise RuntimeError("Maximum redirect limit reached")
 
+            # 현재 요청의 호스트와 포트에 해당하는 Connection Pool 키
+            key = ConnectionPoolCacheKey(host=url_info.host or "", port=url_info.port)
+
+            # Connection Pool에서 재사용 가능한 소켓 확인 (HTTP/1.1만)
+            if http_options["http_version"] == "1.1" and key in Connection.connection_pool:
+                # 기존 연결이 있으면 재사용 시도
+                if self.socket is None:
+                    self.socket = Connection.connection_pool[key]
+
+            # 소켓이 없거나 호스트/포트가 다른 경우 새 소켓 생성
             if self.socket is None:
                 self.socket = Socket(
                     family=AF_INET, type=SOCK_STREAM, proto=IPPROTO_TCP
                 )
+                self.socket.connect((url_info.host, url_info.port))
+                if url_info.scheme == "https":
+                    ctx = ssl.create_default_context()
+                    self.socket = ctx.wrap_socket(
+                        self.socket, server_hostname=url_info.host
+                    )
 
-            self.socket.connect((url_info.host, url_info.port))
-            if url_info.scheme == "https":
-                ctx = ssl.create_default_context()
-                self.socket = ctx.wrap_socket(
-                    self.socket, server_hostname=url_info.host
-                )
-
-            if http_options["http_version"] == "1.1":
-                key = ConnectionPoolCacheKey(
-                    host=url_info.host or "", port=url_info.port
-                )
-                if key not in Connection.connection_pool:
+                # 새로 만든 소켓을 Connection Pool에 저장 (HTTP/1.1만)
+                if http_options["http_version"] == "1.1":
                     Connection.connection_pool[key] = self.socket
 
             request = f"GET {url_info.path} HTTP/{http_options['http_version']}\r\n"
@@ -133,11 +134,34 @@ class Connection:
             request += "Accept-Encoding: *\r\n"
             request += "\r\n"
 
-            self.socket.send(request.encode("utf-8"))
+            try:
+                self.socket.send(request.encode("utf-8"))
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                # 연결이 끊겼으면 Pool에서 제거하고 재시도
+                if key in Connection.connection_pool:
+                    del Connection.connection_pool[key]
+                self.socket = None
+                continue
 
-            response = self.socket.makefile("rb", encoding="utf-8", newline="\r\n")
-            statusline = response.readline().decode("utf-8")
-            version, status, explanation = statusline.split(" ", 2)
+            try:
+                response = self.socket.makefile("rb", encoding="utf-8", newline="\r\n")
+                statusline = response.readline().decode("utf-8")
+                if not statusline:
+                    # 서버가 연결을 끊음 - Pool에서 제거하고 재시도
+                    if key in Connection.connection_pool:
+                        del Connection.connection_pool[key]
+                    self.socket.close()
+                    self.socket = None
+                    continue
+                version, status, explanation = statusline.split(" ", 2)
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                # 연결이 끊겼으면 Pool에서 제거하고 재시도
+                if key in Connection.connection_pool:
+                    del Connection.connection_pool[key]
+                if self.socket:
+                    self.socket.close()
+                self.socket = None
+                continue
 
             # Header 분석
             response_headers = {}

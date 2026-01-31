@@ -249,6 +249,8 @@ class TextLayout:
         if style == "normal":
             style = "roman"
         size = int(float(self.node.style["font-size"][:-2]) * 0.75)
+        assert weight in ("normal", "bold")
+        assert style in ("roman", "italic")
         self.font = get_font(size, weight, style)
 
         self.width = self.font.measure(self.word)

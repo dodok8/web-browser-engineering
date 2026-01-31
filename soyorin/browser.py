@@ -1,3 +1,5 @@
+from soyorin.lexer import Text
+import tkinter
 from soyorin.style import cascade_priority
 from soyorin.lexer import Element
 from soyorin.tree import tree_to_list
@@ -13,7 +15,6 @@ from soyorin.connection import Connection
 from soyorin.cache import FileCache, InMemoryCache
 from soyorin.url import URL
 from soyorin.lexer import HTMLParser, ViewSourceHTMLParser
-import tkinter
 import platform
 
 DEFAULT_STYLE_SHEET = CSSParser(open("browser.css").read()).parse()
@@ -35,9 +36,29 @@ class Browser:
         self.window.bind("<MouseWheel>", self.__scroll_wheel)
         self.window.bind("<Button-4>", self.__scroll_wheel)
         self.window.bind("<Button-5>", self.__scroll_wheel)
+        self.window.bind("<Button-1>", self.click)
 
         self.width = 800
         self.height = 600
+
+    def click(self, e):
+        x, y = e.x, e.y
+        y += self.scroll
+        objs = [
+            obj
+            for obj in tree_to_list(self.document, [])
+            if obj.x <= x < obj.x + obj.width and obj.y <= y < obj.y + obj.height
+        ]
+        if not objs:
+            return
+        elt = objs[-1].node
+        while elt:
+            if isinstance(elt, Text):
+                pass
+            elif elt.tag == "a" and "href" in elt.attributes:
+                url = self.url.resolve(elt.attributes["href"])
+                return self.load(url)
+            elt = elt.parent
 
     def __scroll_wheel(self, e: tkinter.Event):
         if platform.system() == "Windows":
@@ -77,6 +98,7 @@ class Browser:
             cmd.execute(self.scroll, self.canvas)
 
     def load(self, url: URL, use_memory_cache: bool = False):
+        self.url = url
         if use_memory_cache:
             cache = InMemoryCache()
         else:
@@ -112,5 +134,6 @@ class Browser:
         style(self.nodes, sorted(rules, key=cascade_priority))
         self.document = DocumentLayout(self.nodes)
         self.document.layout()
+        self.display_list = []
         paint_tree(self.document, self.display_list)
         self.draw()

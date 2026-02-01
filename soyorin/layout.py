@@ -3,13 +3,15 @@ from __future__ import annotations
 from soyorin.font import get_font
 from soyorin.const import VSTEP
 from soyorin.const import HSTEP
-from soyorin.commnad import DrawRect
-from soyorin.commnad import DrawText
+from soyorin.draw import DrawRect
+from soyorin.draw import DrawText
+from soyorin.draw import Rect
 from soyorin.const import WIDTH
 from soyorin.lexer import Element
 
 from soyorin.lexer import Text, Token
 from tkinter.font import Font
+from typing import cast
 
 
 class DocumentLayout:
@@ -100,13 +102,11 @@ class BlockLayout:
 
     def new_line(self) -> None:
         self.cursor_x = 0
-        last_line = (
-            self.children[-1]
-            if self.children and isinstance(self.children[-1], LineLayout)
-            else None
-        )
-        new_line = LineLayout(self.node, self, last_line)
-        self.children.append(new_line)
+        last_line: LineLayout | None = None
+        if self.children and isinstance(self.children[-1], LineLayout):
+            last_line = cast(LineLayout, self.children[-1])
+        line = LineLayout(self.node, self, last_line)
+        self.children.append(line)
 
     def layout_mode(self) -> str:
         if isinstance(self.node, Text):
@@ -163,7 +163,7 @@ class BlockLayout:
         bgcolor = self.node.style.get("background-color", "transparent")
         if bgcolor != "transparent":
             x2, y2 = self.x + self.width, self.y + self.height
-            rect = DrawRect(self.x, self.y, x2, y2, bgcolor)
+            rect = DrawRect(Rect(self.x, self.y, x2, y2), bgcolor)
             cmds.append(rect)
 
         # Draw bullet for <li> elements
@@ -173,10 +173,12 @@ class BlockLayout:
             bullet_y = self.y + VSTEP / 2
 
             bullet_rect = DrawRect(
-                bullet_x,
-                bullet_y,
-                bullet_x + bullet_size,
-                bullet_y + bullet_size,
+                Rect(
+                    bullet_x,
+                    bullet_y,
+                    bullet_x + bullet_size,
+                    bullet_y + bullet_size,
+                ),
                 "black",
             )
             cmds.append(bullet_rect)

@@ -1,5 +1,5 @@
+from soyorin.layout import get_font
 from typing import Optional
-from argparse import MetavarTypeHelpFormatter
 from soyorin.lexer import Text
 import tkinter
 from soyorin.style import cascade_priority
@@ -42,6 +42,8 @@ class Browser:
 
         self.width = 800
         self.height = 600
+
+        self.chrome = Chrome(self)
 
     def draw(self):
         self.canvas.delete("all")

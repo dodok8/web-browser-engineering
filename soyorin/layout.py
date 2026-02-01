@@ -1,58 +1,41 @@
 from __future__ import annotations
+
+from soyorin.font import get_font
 from soyorin.const import VSTEP
 from soyorin.const import HSTEP
 from soyorin.commnad import DrawRect
 from soyorin.commnad import DrawText
 from soyorin.const import WIDTH
 from soyorin.lexer import Element
-from tkinter import Label
-from typing import Optional
+
 from soyorin.lexer import Text, Token
-import tkinter
 from tkinter.font import Font
-from typing import Tuple, Literal
-
-FONTS: dict[
-    Tuple[int, Literal["normal", "bold"], Literal["roman", "italic"], Optional[str]],
-    Tuple[Font, Label],
-] = {}
-
-
-def get_font(
-    size: int,
-    weight: Literal["normal", "bold"],
-    style: Literal["roman", "italic"],
-    family="D2Coding",
-):
-    size = int(size)  # Ensure size is always an integer
-    key = (size, weight, style, family)
-    if key not in FONTS:
-        font = tkinter.font.Font(size=size, weight=weight, slant=style, family=family)
-        label = tkinter.Label(font=font)
-        FONTS[key] = (font, label)
-    return FONTS[key][0]
 
 
 class DocumentLayout:
     def __init__(self, node: Token):
         self.node = node
         self.parent = None
-        self.children = []
-        self.width = WIDTH - 2 * HSTEP
-        self.x = HSTEP
-        self.y = VSTEP
+        self.children: list[BlockLayout] = []
+        self.width: float = WIDTH - 2 * HSTEP
+        self.x: float = HSTEP
+        self.y: float = VSTEP
+        self.height: float = 0.0
 
-    def layout(self):
+    def layout(self) -> None:
         child = BlockLayout(self.node, self, None)
         self.children.append(child)
         child.layout()
         self.height = child.height
 
-    def paint(self):
+    def paint(self) -> list:
         return []
 
 
-def paint_tree(layout_object, display_list):
+def paint_tree(
+    layout_object: DocumentLayout | BlockLayout | LineLayout | TextLayout,
+    display_list: list[DrawText | DrawRect],
+) -> None:
     display_list.extend(layout_object.paint())
 
     for child in layout_object.children:
@@ -64,23 +47,23 @@ class BlockLayout:
     def __init__(
         self,
         node: Token,
-        parent,
-        previous,
+        parent: DocumentLayout | BlockLayout,
+        previous: BlockLayout | None,
     ):
         self.node = node
         self.parent = parent
         self.previous = previous
         self.children: list[BlockLayout | LineLayout] = []
 
-        self.cursor_x = 0.0
+        self.cursor_x: float = 0.0
 
-        self.width = 0.0
-        self.height = 0.0
+        self.width: float = 0.0
+        self.height: float = 0.0
 
-        self.x = 0.0
-        self.y = 0.0
+        self.x: float = 0.0
+        self.y: float = 0.0
 
-    def recurse(self, node: Token):
+    def recurse(self, node: Token) -> None:
         if isinstance(node, Text):
             for word in node.text.split():
                 self.word(node, word)
@@ -90,7 +73,7 @@ class BlockLayout:
             for child in node.children:
                 self.recurse(child)
 
-    def word(self, node: Text, word: str):
+    def word(self, node: Text, word: str) -> None:
         # Get font to calculate width for line breaking
         weight = node.style["font-weight"]
         style = node.style["font-style"]
@@ -108,20 +91,24 @@ class BlockLayout:
 
         # Add word to current line
         line = self.children[-1]
+        assert isinstance(line, LineLayout)
         previous_word = line.children[-1] if line.children else None
         text = TextLayout(node, word, line, previous_word)
         line.children.append(text)
 
         self.cursor_x += w + font.measure(" ")
 
-    def new_line(self):
+    def new_line(self) -> None:
         self.cursor_x = 0
-        last_line = self.children[-1] if self.children else None
+        last_line = (
+            self.children[-1]
+            if self.children and isinstance(self.children[-1], LineLayout)
+            else None
+        )
         new_line = LineLayout(self.node, self, last_line)
         self.children.append(new_line)
 
-
-    def layout_mode(self):
+    def layout_mode(self) -> str:
         if isinstance(self.node, Text):
             return "inline"
         elif any(
@@ -137,7 +124,7 @@ class BlockLayout:
         else:
             return "block"
 
-    def layout(self):
+    def layout(self) -> None:
 
         self.x = self.parent.x
         self.width = self.parent.width
@@ -170,7 +157,7 @@ class BlockLayout:
 
         self.height = sum([child.height for child in self.children])
 
-    def paint(self):
+    def paint(self) -> list[DrawText | DrawRect]:
         cmds: list[DrawText | DrawRect] = []
 
         bgcolor = self.node.style.get("background-color", "transparent")
@@ -198,13 +185,19 @@ class BlockLayout:
 
 
 class LineLayout:
-    def __init__(self, node, parent, previous):
+    def __init__(
+        self, node: Token, parent: BlockLayout, previous: LineLayout | None
+    ):
         self.node = node
         self.parent = parent
         self.previous = previous
         self.children: list[TextLayout] = []
+        self.width: float = 0.0
+        self.x: float = 0.0
+        self.y: float = 0.0
+        self.height: float = 0.0
 
-    def layout(self):
+    def layout(self) -> None:
         self.width = self.parent.width
         self.x = self.parent.x
 
@@ -219,31 +212,46 @@ class LineLayout:
 
         for word in self.children:
             word.layout()
-        max_ascent = max([word.font.metrics("ascent") for word in self.children])
+        max_ascent = max(
+            [
+                word.font.metrics("ascent")
+                for word in self.children
+                if word.font is not None
+            ]
+        )
         baseline = self.y + 1.25 * max_ascent
         for word in self.children:
-            word.y = baseline - word.font.metrics("ascent")
-        max_descent = max([word.font.metrics("descent") for word in self.children])
+            if word.font is not None:
+                word.y = baseline - word.font.metrics("ascent")
+        max_descent = max(
+            [
+                word.font.metrics("descent")
+                for word in self.children
+                if word.font is not None
+            ]
+        )
         self.height = 1.25 * (max_ascent + max_descent)
 
-    def paint(self):
+    def paint(self) -> list:
         return []
 
 
 class TextLayout:
-    def __init__(self, node, word, parent, previous):
+    def __init__(
+        self, node: Text, word: str, parent: LineLayout, previous: TextLayout | None
+    ):
         self.node = node
         self.word = word
-        self.children = []
+        self.children: list = []
         self.parent = parent
         self.previous = previous
-        self.x = 0.0
-        self.y = 0.0
-        self.width = 0.0
-        self.height = 0.0
-        self.font = None
+        self.x: float = 0.0
+        self.y: float = 0.0
+        self.width: float = 0.0
+        self.height: float = 0.0
+        self.font: Font | None = None
 
-    def layout(self):
+    def layout(self) -> None:
         weight = self.node.style["font-weight"]
         style = self.node.style["font-style"]
         if style == "normal":
@@ -256,6 +264,7 @@ class TextLayout:
         self.width = self.font.measure(self.word)
 
         if self.previous:
+            assert self.previous.font is not None
             space = self.previous.font.measure(" ")
             self.x = self.previous.x + space + self.previous.width
         else:
@@ -263,6 +272,7 @@ class TextLayout:
 
         self.height = self.font.metrics("linespace")
 
-    def paint(self):
+    def paint(self) -> list[DrawText]:
         color = self.node.style["color"]
+        assert self.font is not None
         return [DrawText(self.x, self.y, self.word, self.font, color)]

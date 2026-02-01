@@ -1,3 +1,5 @@
+from typing import Optional
+from argparse import MetavarTypeHelpFormatter
 from soyorin.lexer import Text
 import tkinter
 from soyorin.style import cascade_priority
@@ -21,8 +23,9 @@ DEFAULT_STYLE_SHEET = CSSParser(open("browser.css").read()).parse()
 
 
 class Browser:
-
     def __init__(self):
+        self.tabs = []
+        self.active_tab: Optional[Tab] = None
         self.window = tkinter.Tk()
         self.canvas = tkinter.Canvas(
             self.window, width=WIDTH, height=HEIGHT, bg="white"
@@ -30,19 +33,53 @@ class Browser:
         self.canvas.pack(fill=tkinter.BOTH, expand=True)
         self.display_list = []
 
-        self.scroll = 0.0
-        self.window.bind("<Down>", self.__scroll_down)
-        self.window.bind("<Up>", self.__scroll_up)
-        self.window.bind("<MouseWheel>", self.__scroll_wheel)
-        self.window.bind("<Button-4>", self.__scroll_wheel)
-        self.window.bind("<Button-5>", self.__scroll_wheel)
-        self.window.bind("<Button-1>", self.click)
+        self.window.bind("<Down>", self.handle_down)
+        self.window.bind("<Up>", self.handle_up)
+        self.window.bind("<MouseWheel>", self.handle_scroll)
+        self.window.bind("<Button-4>", self.handle_scroll)
+        self.window.bind("<Button-5>", self.handle_scroll)
+        self.window.bind("<Button-1>", self.handle_click)
 
         self.width = 800
         self.height = 600
 
-    def click(self, e):
-        x, y = e.x, e.y
+    def draw(self):
+        self.canvas.delete("all")
+        if self.active_tab:
+            self.active_tab.draw(self.canvas)
+
+    def handle_down(self, e):
+        if self.active_tab:
+            self.active_tab.scroll_down()
+            self.draw()
+
+    def handle_up(self, e):
+        if self.active_tab:
+            self.active_tab.scroll_up()
+            self.draw()
+
+    def handle_scroll(self, e: tkinter.Event):
+        if self.active_tab:
+            self.active_tab.scroll_wheel(e)
+            self.draw()
+
+    def handle_click(self, e: tkinter.Event):
+        if self.active_tab:
+            self.active_tab.click(e.x, e.y)
+
+    def new_tab(self, url, use_memory_cache: bool = False):
+        new_tab = Tab()
+        new_tab.load(url, use_memory_cache)
+        self.active_tab = new_tab
+        self.tabs.append(new_tab)
+        self.draw()
+
+
+class Tab:
+    def __init__(self):
+        self.scroll = 0.0
+
+    def click(self, x, y):
         y += self.scroll
         objs = [
             obj
@@ -60,7 +97,7 @@ class Browser:
                 return self.load(url)
             elt = elt.parent
 
-    def __scroll_wheel(self, e: tkinter.Event):
+    def scroll_wheel(self, e: tkinter.Event):
         if platform.system() == "Windows":
             delta = SCROLL_STEP * (e.delta / 120)
         elif platform.system() == "Darwin":
@@ -77,25 +114,22 @@ class Browser:
 
         max_y = max(self.document.height + 2 * VSTEP - HEIGHT, 0)
         self.scroll = min(max(self.scroll - delta, 0), max_y)
-        self.draw()
 
-    def __scroll_down(self, e):
+    def scroll_down(self):
         max_y = max(self.document.height + 2 * VSTEP - HEIGHT, 0)
         self.scroll = min(self.scroll + SCROLL_STEP, max_y)
-        self.draw()
 
-    def __scroll_up(self, e):
+    def scroll_up(self):
         self.scroll = max(self.scroll - SCROLL_STEP, 0)
-        self.draw()
 
-    def draw(self):
-        self.canvas.delete("all")
+    def draw(self, canvas):
+        canvas.delete("all")
         for cmd in self.display_list:
             if cmd.top > self.scroll + HEIGHT:
                 continue
             if cmd.bottom < self.scroll:
                 continue
-            cmd.execute(self.scroll, self.canvas)
+            cmd.execute(self.scroll, canvas)
 
     def load(self, url: URL, use_memory_cache: bool = False):
         self.url = url
@@ -136,4 +170,3 @@ class Browser:
         self.document.layout()
         self.display_list = []
         paint_tree(self.document, self.display_list)
-        self.draw()

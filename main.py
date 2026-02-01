@@ -40,8 +40,8 @@ if __name__ == "__main__":
             # Load blank.html from the same directory when no argument is provided
             path = Path(__file__).parent / "blank.html"
             url = URL(path.as_uri())
-        browser.load(url, use_memory_cache)
+        browser.new_tab(url, use_memory_cache)
     except Exception:
         url = URL("about:blank")
-        browser.load(url)
+        browser.new_tab(url)
     tkinter.mainloop()

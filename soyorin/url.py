@@ -184,6 +184,48 @@ class URL:
         else:
             return FileUrlInfo(host=hostname_value or "localhost", path=path_value)
 
+    def __str__(self) -> str:
+        prefix = "view-source:" if self.view_source else ""
+
+        if isinstance(self.url_info, HttpUrlInfo):
+            url = f"{self.url_info.scheme}://"
+            if self.url_info.username:
+                url += self.url_info.username
+                if self.url_info.password:
+                    url += ":" + self.url_info.password
+                url += "@"
+            url += self.url_info.host or ""
+            if (self.url_info.scheme == "http" and self.url_info.port != 80) or \
+               (self.url_info.scheme == "https" and self.url_info.port != 443):
+                url += ":" + str(self.url_info.port)
+            if self.url_info.path:
+                url += self.url_info.path
+            if self.url_info.query:
+                url += "?" + self.url_info.query
+            if self.url_info.fragment:
+                url += "#" + self.url_info.fragment
+            return prefix + url
+        elif isinstance(self.url_info, FileUrlInfo):
+            url = f"file://{self.url_info.host}"
+            if self.url_info.path:
+                url += self.url_info.path
+            return prefix + url
+        elif isinstance(self.url_info, DataUrlInfo):
+            url = "data:"
+            if self.url_info.mediatype != "text/plain":
+                url += self.url_info.mediatype
+            for key, value in self.url_info.parameters.items():
+                if not (key == "charset" and value == "US-ASCII" and self.url_info.mediatype == "text/plain"):
+                    url += f";{key}={value}"
+            if self.url_info.is_base64:
+                url += ";base64"
+            url += "," + self.url_info.data
+            return prefix + url
+        elif isinstance(self.url_info, AboutUrlInfo):
+            return prefix + f"about:{self.url_info.path}"
+        else:
+            return prefix + "unknown"
+
     def resolve(self, url: str) -> "URL":
         if "://" in url:
             return URL(url)

@@ -46,11 +46,21 @@ class Browser:
         self.window.bind("<Button-4>", self.handle_scroll)
         self.window.bind("<Button-5>", self.handle_scroll)
         self.window.bind("<Button-1>", self.handle_click)
+        self.window.bind("<Key>", self.handle_key)
+        self.window.bind("<Return>", self.handle_enter)
 
         self.width = 800
         self.height = 600
 
         self.chrome = Chrome(self)
+
+    def handle_key(self, e):
+        if len(e.char) == 0:
+            return
+        if not (0x20 <= ord(e.char) < 0x7F):
+            return
+        self.chrome.keypress(e.char)
+        self.draw()
 
     def draw(self):
         self.canvas.delete("all")
@@ -78,8 +88,13 @@ class Browser:
         if e.y < self.chrome.bottom:
             self.chrome.click(e.x, e.y)
         else:
-            tab_y = e.y - self.chrome.bottom
-            self.active_tab.click(e.x, tab_y)
+            if self.active_tab:
+                tab_y = e.y - self.chrome.bottom
+                self.active_tab.click(e.x, tab_y)
+        self.draw()
+
+    def handle_enter(self, e):
+        self.chrome.enter()
         self.draw()
 
     def new_tab(self, url, use_memory_cache: bool = False):
@@ -205,7 +220,25 @@ class Chrome:
             self.padding + self.font_height,
         )
 
-        self.bottom = self.tabbar_bottom
+        back_width = self.font.measure("<") + 2 * self.padding
+        self.back_rect = Rect(
+            self.padding,
+            self.tabbar_bottom + self.padding,
+            self.padding + back_width,
+            self.tabbar_bottom + self.padding + self.font_height,
+        )
+
+        self.address_rect = Rect(
+            self.back_rect.right + self.padding,
+            self.tabbar_bottom + self.padding,
+            WIDTH - self.padding,
+            self.tabbar_bottom + self.padding + self.font_height,
+        )
+
+        self.bottom = self.address_rect.bottom + self.padding
+
+        self.focus = None
+        self.address_bar = ""
 
     def tab_rect(self, i):
         tabs_start = self.newtab_rect.right + self.padding
@@ -262,6 +295,39 @@ class Chrome:
                     )
                 )
 
+        if self.focus == "address bar":
+            cmds.append(
+                DrawText(
+                    self.address_rect.left + self.padding,
+                    self.address_rect.top,
+                    self.address_bar,
+                    self.font,
+                    "black",
+                )
+            )
+            w = self.font.measure(self.address_bar)
+            cmds.append(
+                DrawLine(
+                    self.address_rect.left + self.padding + w,
+                    self.address_rect.top,
+                    self.address_rect.left + self.padding + w,
+                    self.address_rect.bottom,
+                    "red",
+                    1,
+                )
+            )
+        else:
+            if self.browser.active_tab:
+                url = str(self.browser.active_tab.url)
+                cmds.append(
+                    DrawText(
+                        self.address_rect.left + self.padding,
+                        self.address_rect.top,
+                        url,
+                        self.font,
+                        "black",
+                    )
+                )
         return cmds
 
     def click(self, x, y):
@@ -270,8 +336,21 @@ class Chrome:
             path = Path(__file__).parent.parent / "blank.html"
             url = URL(path.as_uri())
             self.browser.new_tab(url)
+        elif self.address_rect.contains_point(x, y):
+            self.focus = "address bar"
+            self.address_bar = ""
         else:
             for i, tab in enumerate(self.browser.tabs):
                 if self.tab_rect(i).contains_point(x, y):
                     self.browser.active_tab = tab
                     break
+
+    def keypress(self, char):
+        if self.focus == "address bar":
+            self.address_bar += char
+
+    def enter(self):
+        if self.focus == "address bar":
+            if self.browser.active_tab:
+                self.browser.active_tab.load(URL(self.address_bar))
+            self.focus = None

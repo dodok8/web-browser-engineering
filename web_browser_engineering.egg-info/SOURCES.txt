@@ -3,11 +3,14 @@ pyproject.toml
 setup.cfg
 soyorin/browser.py
 soyorin/cache.py
-soyorin/commnad.py
 soyorin/connection.py
 soyorin/const.py
+soyorin/draw.py
+soyorin/font.py
 soyorin/layout.py
 soyorin/lexer.py
+soyorin/style.py
+soyorin/tree.py
 soyorin/url.py
 test/test_layout.py
 test/test_lexer.py

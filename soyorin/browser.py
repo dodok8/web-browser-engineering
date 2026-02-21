@@ -71,6 +71,7 @@ class Browser:
         self.canvas.delete("all")
         if self.active_tab:
             self.active_tab.draw(self.canvas, self.chrome.bottom)
+            self.window.title(self.active_tab.title)
         for cmd in self.chrome.paint():
             cmd.execute(0, self.canvas)
 
@@ -114,6 +115,7 @@ class Tab:
     def __init__(self, tab_height):
         self.scroll = 0.0
         self.tab_height = tab_height
+        self.title = ""
 
     def click(self, x, y):
         y += self.scroll
@@ -205,6 +207,23 @@ class Tab:
         self.document.layout()
         self.display_list = []
         paint_tree(self.document, self.display_list)
+
+        # Extract title from <title> element
+        title_elements = [
+            node
+            for node in tree_to_list(self.nodes, [])
+            if isinstance(node, Element) and node.tag == "title"
+        ]
+        if title_elements:
+            title_element = title_elements[0]
+            title_texts = [
+                child.text
+                for child in title_element.children
+                if isinstance(child, Text)
+            ]
+            self.title = "".join(title_texts)
+        else:
+            self.title = ""
 
 
 class Chrome:
